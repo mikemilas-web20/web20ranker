@@ -178,6 +178,11 @@ async function seedOwner() {
   }
 }
 
+/** Lightweight connectivity check for the health endpoint. */
+export async function pingDb(): Promise<void> {
+  await pool.query("SELECT 1");
+}
+
 /** Runs migrations + owner seed exactly once per process. */
 export function ensureReady(): Promise<void> {
   if (!g._ready) {

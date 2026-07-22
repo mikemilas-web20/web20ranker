@@ -39,8 +39,15 @@ export default function JoinPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, name, password }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not accept invite");
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          json?.error ||
+            (res.status >= 500
+              ? `Server error (${res.status}). The app may not be able to reach the database.`
+              : `Could not accept invite (${res.status}).`)
+        );
+      }
       router.replace("/");
       router.refresh();
     } catch (err) {

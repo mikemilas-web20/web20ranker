@@ -23,8 +23,15 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Login failed");
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          json?.error ||
+            (res.status >= 500
+              ? `Server error (${res.status}). The app may not be able to reach the database — check your DATABASE_* and AUTH_SECRET settings.`
+              : `Sign-in failed (${res.status}).`)
+        );
+      }
       router.replace("/");
       router.refresh();
     } catch (err) {
