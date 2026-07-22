@@ -10,16 +10,9 @@ import path from "path";
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
 
-export const CHANNEL_STATUSES = [
-  "to_contact",
-  "contacted",
-  "replied",
-  "in_talks",
-  "won",
-  "not_interested",
-] as const;
-
-export type ChannelStatus = (typeof CHANNEL_STATUSES)[number];
+export { CHANNEL_STATUSES } from "./statuses";
+export type { ChannelStatus } from "./statuses";
+import type { ChannelStatus } from "./statuses";
 
 export interface ChannelRow {
   id: string;

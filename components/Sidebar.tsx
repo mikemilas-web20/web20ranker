@@ -1,0 +1,110 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/cn";
+
+const NAV = [
+  {
+    href: "/",
+    label: "Discover",
+    match: (p: string) => p === "/",
+    icon: (
+      <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-4.3-4.3" />
+    ),
+  },
+  {
+    href: "/saved",
+    label: "Pipeline",
+    match: (p: string) => p.startsWith("/saved") || p.startsWith("/channel"),
+    icon: (
+      <>
+        <rect x="3" y="4" width="5" height="16" rx="1" />
+        <rect x="10" y="4" width="5" height="11" rx="1" />
+        <rect x="17" y="4" width="4" height="7" rx="1" />
+      </>
+    ),
+  },
+  {
+    href: "/templates",
+    label: "Templates",
+    match: (p: string) => p.startsWith("/templates"),
+    icon: (
+      <>
+        <rect x="4" y="4" width="16" height="16" rx="1" />
+        <path d="M8 9h8M8 13h6" />
+      </>
+    ),
+  },
+  {
+    href: "/settings",
+    label: "Settings",
+    match: (p: string) => p.startsWith("/settings"),
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" />
+      </>
+    ),
+  },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  return (
+    <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-line bg-surface">
+      <div className="h-16 flex items-center gap-2.5 px-5 border-b border-line">
+        <span className="w-9 h-9 grid place-items-center bg-accent text-accent-ink font-black text-lg shadow-block-sm">
+          ◐
+        </span>
+        <div className="leading-tight">
+          <div className="font-bold tracking-tight text-ink">Creator Scout</div>
+          <div className="label !text-[9px] !tracking-[0.2em]">Outreach console</div>
+        </div>
+      </div>
+
+      <nav className="flex flex-col gap-1 p-3">
+        {NAV.map((item) => {
+          const active = item.match(pathname);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 text-sm border border-transparent transition-colors",
+                active
+                  ? "bg-surface-2 border-line text-ink"
+                  : "text-ink-dim hover:text-ink hover:bg-surface-2/60"
+              )}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={active ? "text-accent" : ""}
+              >
+                {item.icon}
+              </svg>
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto p-3">
+        <div className="border border-line bg-surface-2 p-3">
+          <div className="label mb-1">Workspace</div>
+          <div className="text-sm text-ink truncate">My Workspace</div>
+          <div className="label !tracking-[0.1em] mt-1 text-ink-dim/70">
+            invite-only · free
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}

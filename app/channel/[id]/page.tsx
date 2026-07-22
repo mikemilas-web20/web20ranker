@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import {
-  formatCount,
-  channelUrl,
-  fillTemplate,
-  STATUS_LABELS,
-} from "@/lib/format";
+import { formatCount, channelUrl, fillTemplate, STATUS_LABELS } from "@/lib/format";
+import { CHANNEL_STATUSES } from "@/lib/statuses";
+import { Card } from "@/components/ui/Card";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { Input, Textarea, Select, Field } from "@/components/ui/Input";
 
 interface ChannelDetail {
   id: string;
@@ -125,16 +124,23 @@ export default function ChannelPage() {
   }
 
   if (loading)
-    return <p className="text-slate-500 text-sm py-8 text-center">Loading…</p>;
+    return <p className="text-ink-dim text-sm py-8 text-center">Loading…</p>;
   if (error || !channel)
     return (
-      <div className="rounded-lg border border-rose-800 bg-rose-950/40 text-rose-200 px-4 py-3 text-sm">
+      <div className="border border-crit/50 bg-crit/10 text-ink px-4 py-3 text-sm">
         {error || "Channel not found"}{" "}
-        <Link href="/settings" className="underline">
+        <Link href="/settings" className="text-accent underline">
           Check Settings
         </Link>
       </div>
     );
+
+  const stats: [string, string][] = [
+    [formatCount(channel.subscriberCount), "Subscribers"],
+    [formatCount(channel.videoCount), "Videos"],
+    [formatCount(channel.viewCount), "Total views"],
+    [String(new Date(channel.publishedAt).getFullYear() || "?"), "Since"],
+  ];
 
   return (
     <div className="flex flex-col gap-8">
@@ -145,64 +151,74 @@ export default function ChannelPage() {
           <img
             src={channel.thumbnail}
             alt=""
-            className="w-20 h-20 rounded-full object-cover"
+            className="w-20 h-20 object-cover border border-line shadow-block-sm"
           />
         )}
         <div className="flex-1 min-w-64">
-          <h1 className="text-2xl font-semibold text-white">{channel.title}</h1>
-          <div className="text-sm text-slate-400 flex gap-3 flex-wrap mt-1">
-            <span>{formatCount(channel.subscriberCount)} subscribers</span>
-            <span>{formatCount(channel.videoCount)} videos</span>
-            <span>{formatCount(channel.viewCount)} total views</span>
-            {channel.country && <span>{channel.country}</span>}
-            <span>
-              since {new Date(channel.publishedAt).getFullYear() || "?"}
-            </span>
-          </div>
-          <div className="flex gap-2 mt-3 text-sm">
+          <h1 className="text-2xl font-bold tracking-tight text-ink">
+            {channel.title}
+          </h1>
+          {channel.country && (
+            <div className="font-mono text-[11px] text-ink-dim mt-1">
+              {channel.customUrl || channel.id} · {channel.country}
+            </div>
+          )}
+          <div className="flex gap-2 mt-3 flex-wrap">
             {!saved ? (
-              <button
-                onClick={saveChannel}
-                className="px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-white font-medium"
-              >
+              <Button variant="primary" size="sm" onClick={saveChannel}>
                 Save for outreach
-              </button>
+              </Button>
             ) : (
-              <select
+              <Select
                 value={saved.status}
                 onChange={(e) => patchSaved({ status: e.target.value })}
-                className="rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5"
+                aria-label="Status"
+                className="w-auto !py-1.5 text-sm"
               >
-                {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                {CHANNEL_STATUSES.map((k) => (
                   <option key={k} value={k}>
-                    {v}
+                    {STATUS_LABELS[k]}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
-            <a
+            <ButtonLink
+              size="sm"
+              variant="default"
               href={channelUrl(channel.id, channel.customUrl)}
+              external
               target="_blank"
               rel="noreferrer"
-              className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-white"
             >
               Channel ↗
-            </a>
-            <a
+            </ButtonLink>
+            <ButtonLink
+              size="sm"
+              variant="default"
               href={`${channelUrl(channel.id, channel.customUrl)}/about`}
+              external
               target="_blank"
               rel="noreferrer"
-              className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-white"
               title="Business emails are usually listed on the About page"
             >
               About page ↗
-            </a>
+            </ButtonLink>
           </div>
         </div>
       </div>
 
+      {/* Stat strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 border border-line divide-x divide-y sm:divide-y-0 divide-line">
+        {stats.map(([n, l]) => (
+          <div key={l} className="p-4">
+            <div className="text-xl font-bold tabular-nums text-ink">{n}</div>
+            <div className="label !text-[9px] mt-1">{l}</div>
+          </div>
+        ))}
+      </div>
+
       {channel.description && (
-        <p className="text-sm text-slate-400 whitespace-pre-line max-w-3xl">
+        <p className="text-sm text-ink-dim whitespace-pre-line max-w-3xl">
           {channel.description}
         </p>
       )}
@@ -210,7 +226,9 @@ export default function ChannelPage() {
       {/* Recent videos */}
       {videos.length > 0 && (
         <section>
-          <h2 className="text-lg font-medium text-white mb-3">Recent videos</h2>
+          <h2 className="font-mono text-xs tracking-[0.14em] uppercase text-ink-dim mb-3">
+            Recent uploads
+          </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {videos.map((v) => (
               <a
@@ -225,14 +243,14 @@ export default function ChannelPage() {
                   <img
                     src={v.thumbnail}
                     alt=""
-                    className="rounded-lg w-full aspect-video object-cover"
+                    className="w-full aspect-video object-cover border border-line group-hover:border-accent"
                   />
                 )}
-                <p className="text-xs text-slate-300 mt-1.5 line-clamp-2 group-hover:underline">
+                <p className="text-xs text-ink mt-1.5 line-clamp-2 group-hover:text-accent">
                   {v.title}
                 </p>
                 {v.publishedAt && (
-                  <p className="text-[11px] text-slate-500">
+                  <p className="font-mono text-[10px] text-ink-dim">
                     {new Date(v.publishedAt).toLocaleDateString()}
                   </p>
                 )}
@@ -244,47 +262,41 @@ export default function ChannelPage() {
 
       {/* Outreach */}
       <section className="grid md:grid-cols-2 gap-6">
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 flex flex-col gap-3">
-          <h2 className="text-lg font-medium text-white">Contact info</h2>
+        <Card className="flex flex-col gap-3">
+          <h2 className="font-mono text-xs tracking-[0.14em] uppercase text-ink-dim">
+            Contact info
+          </h2>
           {!saved ? (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-ink-dim">
               Save this channel to track contact info and notes.
             </p>
           ) : (
             <>
-              <label className="text-sm flex flex-col gap-1">
-                <span className="text-slate-400">
-                  Email{" "}
-                  <span className="text-slate-600">
-                    (find it on the channel&apos;s About page → &quot;View email
-                    address&quot;)
-                  </span>
-                </span>
-                <input
+              <Field
+                label="Email"
+                hint="Find it on the channel's About page → “View email address”"
+              >
+                <Input
                   defaultValue={saved.email}
                   placeholder="creator@example.com"
                   onBlur={(e) =>
                     e.target.value !== saved.email &&
                     patchSaved({ email: e.target.value })
                   }
-                  className="rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5"
                 />
-              </label>
-              <label className="text-sm flex flex-col gap-1">
-                <span className="text-slate-400">Niche tag</span>
-                <input
+              </Field>
+              <Field label="Niche tag">
+                <Input
                   defaultValue={saved.niche}
                   placeholder="e.g. keto recipes"
                   onBlur={(e) =>
                     e.target.value !== saved.niche &&
                     patchSaved({ niche: e.target.value })
                   }
-                  className="rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5"
                 />
-              </label>
-              <label className="text-sm flex flex-col gap-1 flex-1">
-                <span className="text-slate-400">Notes</span>
-                <textarea
+              </Field>
+              <Field label="Notes" className="flex-1">
+                <Textarea
                   defaultValue={saved.notes}
                   rows={5}
                   placeholder="Audience fit, rates, past collabs…"
@@ -292,80 +304,80 @@ export default function ChannelPage() {
                     e.target.value !== saved.notes &&
                     patchSaved({ notes: e.target.value })
                   }
-                  className="rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5 flex-1"
                 />
-              </label>
+              </Field>
             </>
           )}
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 flex flex-col gap-3">
+        <Card block className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-medium text-white">Compose outreach</h2>
-            <Link href="/templates" className="text-xs text-slate-400 underline">
+            <h2 className="font-mono text-xs tracking-[0.14em] uppercase text-ink-dim">
+              Compose outreach
+            </h2>
+            <Link href="/templates" className="text-xs text-accent underline">
               Edit templates
             </Link>
           </div>
           {templates.length === 0 ? (
-            <p className="text-sm text-slate-500">No templates yet.</p>
+            <p className="text-sm text-ink-dim">No templates yet.</p>
           ) : (
             <>
-              <select
+              <Select
                 value={templateId ?? ""}
                 onChange={(e) => setTemplateId(Number(e.target.value))}
-                className="rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5 text-sm"
               >
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
                 ))}
-              </select>
+              </Select>
               {renderedSubject && (
                 <div className="flex gap-2 items-center">
-                  <input
-                    readOnly
-                    value={renderedSubject}
-                    className="flex-1 rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5 text-sm text-slate-300"
-                  />
-                  <button
+                  <Input readOnly value={renderedSubject} className="flex-1" />
+                  <Button
+                    size="sm"
+                    variant="default"
                     onClick={() => copy(renderedSubject, "subject")}
-                    className="px-2.5 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs"
                   >
                     {copied === "subject" ? "Copied!" : "Copy"}
-                  </button>
+                  </Button>
                 </div>
               )}
-              <textarea
+              <Textarea
                 readOnly
                 value={renderedBody}
                 rows={12}
-                className="rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5 text-sm text-slate-300 font-mono"
+                className="font-mono"
               />
               <div className="flex gap-2">
-                <button
+                <Button
+                  size="sm"
+                  variant="default"
                   onClick={() => copy(renderedBody, "body")}
-                  className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-sm text-white"
                 >
                   {copied === "body" ? "Copied!" : "Copy message"}
-                </button>
+                </Button>
                 {saved?.email && (
-                  <a
+                  <ButtonLink
+                    size="sm"
+                    variant="primary"
                     href={`mailto:${saved.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(renderedBody)}`}
+                    external
                     onClick={() =>
                       saved.status === "to_contact" &&
                       patchSaved({ status: "contacted" })
                     }
-                    className="px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-sm text-white font-medium"
                   >
                     Open in email client
-                  </a>
+                  </ButtonLink>
                 )}
               </div>
               {!senderName && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-ink-dim">
                   Tip: set your name in{" "}
-                  <Link href="/settings" className="underline">
+                  <Link href="/settings" className="text-accent underline">
                     Settings
                   </Link>{" "}
                   to fill {"{{my_name}}"} automatically.
@@ -373,7 +385,7 @@ export default function ChannelPage() {
               )}
             </>
           )}
-        </div>
+        </Card>
       </section>
     </div>
   );

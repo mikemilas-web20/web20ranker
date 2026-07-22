@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import ChannelCard, { SearchChannel } from "@/components/ChannelCard";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input, Select, Field } from "@/components/ui/Input";
 
 const REGIONS = [
   ["", "Any region"],
@@ -75,112 +78,103 @@ export default function DiscoverPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-white">Discover channels</h1>
-        <p className="text-slate-400 text-sm mt-1">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">
+          Discover channels
+        </h1>
+        <p className="text-ink-dim text-sm mt-1">
           Search a niche or topic to find YouTube creators worth reaching out to.
         </p>
       </div>
 
-      <form
-        onSubmit={search}
-        className="rounded-xl border border-slate-800 bg-slate-900 p-4 flex flex-col gap-4"
-      >
-        <div className="flex gap-2">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder='Niche or topic, e.g. "keto recipes", "budget travel", "woodworking"'
-            className="flex-1 rounded-md bg-slate-950 border border-slate-700 px-3 py-2 text-white placeholder:text-slate-500 focus:outline-none focus:border-red-500"
-          />
-          <button
-            type="submit"
-            disabled={loading || !q.trim()}
-            className="px-5 py-2 rounded-md bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium"
-          >
-            {loading ? "Searching…" : "Search"}
-          </button>
-        </div>
+      <Card block className="flex flex-col gap-4">
+        <form onSubmit={search} className="contents">
+          <div className="flex gap-2">
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder='Niche or topic — "keto recipes", "budget travel", "woodworking"'
+              className="flex-1"
+            />
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={loading || !q.trim()}
+              className="shrink-0"
+            >
+              {loading ? "Searching…" : "Search"}
+            </Button>
+          </div>
 
-        <div className="flex flex-wrap gap-4 text-sm items-end">
-          <label className="flex flex-col gap-1">
-            <span className="text-slate-400">Discovery mode</span>
-            <select
-              value={mode}
-              onChange={(e) => setMode(e.target.value as "videos" | "channels")}
-              className="rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5"
-            >
-              <option value="videos">Via videos (best for niches)</option>
-              <option value="channels">Channel name/description</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-slate-400">Min subs</span>
-            <input
-              value={minSubs}
-              onChange={(e) => setMinSubs(e.target.value.replace(/\D/g, ""))}
-              placeholder="e.g. 1000"
-              className="w-28 rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-slate-400">Max subs</span>
-            <input
-              value={maxSubs}
-              onChange={(e) => setMaxSubs(e.target.value.replace(/\D/g, ""))}
-              placeholder="e.g. 500000"
-              className="w-28 rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-slate-400">Region</span>
-            <select
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              className="rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5"
-            >
-              {REGIONS.map(([code, label]) => (
-                <option key={code} value={code}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {mode === "videos" && (
-            <label className="flex flex-col gap-1">
-              <span className="text-slate-400">Posted within</span>
-              <select
-                value={activeDays}
-                onChange={(e) => setActiveDays(e.target.value)}
-                className="rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5"
+          <div className="flex flex-wrap gap-4 items-end">
+            <Field label="Mode" className="min-w-52">
+              <Select
+                value={mode}
+                onChange={(e) => setMode(e.target.value as "videos" | "channels")}
               >
-                <option value="">Any time</option>
-                <option value="30">30 days</option>
-                <option value="90">90 days</option>
-                <option value="180">6 months</option>
-                <option value="365">1 year</option>
-              </select>
-            </label>
-          )}
-        </div>
-      </form>
+                <option value="videos">Via videos (best for niches)</option>
+                <option value="channels">Channel name / description</option>
+              </Select>
+            </Field>
+            <Field label="Min subs" className="w-28">
+              <Input
+                value={minSubs}
+                onChange={(e) => setMinSubs(e.target.value.replace(/\D/g, ""))}
+                placeholder="1000"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Max subs" className="w-28">
+              <Input
+                value={maxSubs}
+                onChange={(e) => setMaxSubs(e.target.value.replace(/\D/g, ""))}
+                placeholder="500000"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Region" className="min-w-40">
+              <Select value={region} onChange={(e) => setRegion(e.target.value)}>
+                {REGIONS.map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {mode === "videos" && (
+              <Field label="Posted within" className="min-w-36">
+                <Select
+                  value={activeDays}
+                  onChange={(e) => setActiveDays(e.target.value)}
+                >
+                  <option value="">Any time</option>
+                  <option value="30">30 days</option>
+                  <option value="90">90 days</option>
+                  <option value="180">6 months</option>
+                  <option value="365">1 year</option>
+                </Select>
+              </Field>
+            )}
+          </div>
+        </form>
+      </Card>
 
       {needsKey && (
-        <div className="rounded-lg border border-amber-700 bg-amber-950/40 text-amber-200 px-4 py-3 text-sm">
+        <div className="border border-warn/50 bg-warn/10 text-ink px-4 py-3 text-sm">
           You need a YouTube Data API key to search.{" "}
-          <Link href="/settings" className="underline font-medium">
+          <Link href="/settings" className="text-accent font-medium underline">
             Add one in Settings →
           </Link>
         </div>
       )}
       {error && !needsKey && (
-        <div className="rounded-lg border border-rose-800 bg-rose-950/40 text-rose-200 px-4 py-3 text-sm">
+        <div className="border border-crit/50 bg-crit/10 text-ink px-4 py-3 text-sm">
           {error}
         </div>
       )}
 
       {results && (
         <>
-          <p className="text-sm text-slate-400">
+          <p className="label">
             {results.length} channel{results.length === 1 ? "" : "s"} found
             {results.length === 0 &&
               " — try widening the subscriber range or a broader keyword"}
@@ -194,10 +188,10 @@ export default function DiscoverPage() {
       )}
 
       {!results && !error && !needsKey && (
-        <div className="text-center text-slate-500 py-16 text-sm">
-          Search results will appear here. Saved channels go to{" "}
-          <Link href="/saved" className="underline">
-            Saved &amp; Outreach
+        <div className="text-center text-ink-dim py-16 text-sm border border-dashed border-line">
+          Search results will appear here. Saved channels go to your{" "}
+          <Link href="/saved" className="text-accent underline">
+            Pipeline
           </Link>
           .
         </div>

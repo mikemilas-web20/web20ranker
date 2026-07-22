@@ -1,9 +1,145 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------ *
+ * Creator Scout — "Broadcast Industrial" design tokens
+ * Drive every component through these tokens so both themes swap cleanly.
+ * ------------------------------------------------------------------ */
+
 @theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-crit: var(--crit);
+  --color-info: var(--info);
+
   --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  /* light */
+  --ground: #e9e4d9;
+  --surface: #f4f0e8;
+  --surface-2: #fbf8f2;
+  --line: #c9bfae;
+  --line-strong: #a99c86;
+  --ink: #1a1611;
+  --ink-dim: #6a5f51;
+  --accent: #e24608;
+  --accent-ink: #fbf8f2;
+  --good: #2f8f5b;
+  --warn: #b77712;
+  --crit: #c93436;
+  --info: #2e6fb0;
+  --grain: 0.05;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #14110e;
+    --surface: #1c1814;
+    --surface-2: #241f19;
+    --line: #372f26;
+    --line-strong: #4e4335;
+    --ink: #f3ece0;
+    --ink-dim: #a89b89;
+    --accent: #ff5a1f;
+    --accent-ink: #14110e;
+    --good: #57c785;
+    --warn: #e0a02e;
+    --crit: #e5595b;
+    --info: #6aa9e9;
+    --grain: 0.06;
+  }
+}
+
+/* Explicit toggle overrides (win over the media query in both directions) */
+:root[data-theme="light"] {
+  --ground: #e9e4d9;
+  --surface: #f4f0e8;
+  --surface-2: #fbf8f2;
+  --line: #c9bfae;
+  --line-strong: #a99c86;
+  --ink: #1a1611;
+  --ink-dim: #6a5f51;
+  --accent: #e24608;
+  --accent-ink: #fbf8f2;
+  --good: #2f8f5b;
+  --warn: #b77712;
+  --crit: #c93436;
+  --info: #2e6fb0;
+  --grain: 0.05;
+}
+
+:root[data-theme="dark"] {
+  --ground: #14110e;
+  --surface: #1c1814;
+  --surface-2: #241f19;
+  --line: #372f26;
+  --line-strong: #4e4335;
+  --ink: #f3ece0;
+  --ink-dim: #a89b89;
+  --accent: #ff5a1f;
+  --accent-ink: #14110e;
+  --good: #57c785;
+  --warn: #e0a02e;
+  --crit: #e5595b;
+  --info: #6aa9e9;
+  --grain: 0.06;
+}
+
+html {
+  height: 100%;
 }
 
 body {
-  background: #020617;
+  background: var(--ground);
+  color: var(--ink);
+  min-height: 100%;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Film-grain overlay — the "rough" texture */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: var(--grain);
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@layer utilities {
+  .font-mono {
+    font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  /* Hard offset block-shadow — the sticker/industrial look */
+  .shadow-block {
+    box-shadow: 5px 5px 0 0 var(--line-strong);
+  }
+  .shadow-block-sm {
+    box-shadow: 3px 3px 0 0 var(--line-strong);
+  }
+  .label {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
 }

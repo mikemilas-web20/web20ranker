@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input, Field } from "@/components/ui/Input";
 
 export default function SettingsPage() {
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -39,84 +42,83 @@ export default function SettingsPage() {
   }
 
   if (loading)
-    return <p className="text-slate-500 text-sm py-8 text-center">Loading…</p>;
+    return <p className="text-ink-dim text-sm py-8 text-center">Loading…</p>;
 
   return (
     <div className="max-w-2xl flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-white">Settings</h1>
-        <p className="text-slate-400 text-sm mt-1">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Settings</h1>
+        <p className="text-ink-dim text-sm mt-1">
           Configure your YouTube API access and outreach identity.
         </p>
       </div>
 
-      <form
-        onSubmit={save}
-        className="rounded-xl border border-slate-800 bg-slate-900 p-5 flex flex-col gap-5"
-      >
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-white">
-            YouTube Data API v3 key
-          </label>
-          {hasApiKey && (
-            <p className="text-xs text-emerald-400">
-              ✓ A key is configured ({apiKeyMasked}). Enter a new one to replace
-              it.
-            </p>
-          )}
-          <input
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            type="password"
-            placeholder={hasApiKey ? "Enter new key to replace" : "AIza…"}
-            className="rounded-md bg-slate-950 border border-slate-700 px-3 py-2"
-          />
-          <p className="text-xs text-slate-500">
-            Get one free from the{" "}
-            <a
-              href="https://console.cloud.google.com/apis/library/youtube.googleapis.com"
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              Google Cloud Console
-            </a>{" "}
-            — enable “YouTube Data API v3” and create an API key. The default
-            free quota is 10,000 units/day.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-white">Your name</label>
-          <input
-            value={senderName}
-            onChange={(e) => setSenderName(e.target.value)}
-            placeholder="Used to fill {{my_name}} in templates"
-            className="rounded-md bg-slate-950 border border-slate-700 px-3 py-2"
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-medium text-sm w-fit"
+      <Card block>
+        <form onSubmit={save} className="flex flex-col gap-5">
+          <Field
+            label="YouTube Data API v3 key"
+            hint={
+              <>
+                Get one free from the{" "}
+                <a
+                  href="https://console.cloud.google.com/apis/library/youtube.googleapis.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent underline"
+                >
+                  Google Cloud Console
+                </a>{" "}
+                — enable “YouTube Data API v3” and create an API key. Free quota
+                is 10,000 units/day.
+              </>
+            }
           >
-            Save settings
-          </button>
-          {saved && <span className="text-sm text-emerald-400">Saved ✓</span>}
-        </div>
-      </form>
+            {hasApiKey && (
+              <p className="text-xs text-good mb-1">
+                ✓ A key is configured ({apiKeyMasked}). Enter a new one to
+                replace it.
+              </p>
+            )}
+            <Input
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              type="password"
+              placeholder={hasApiKey ? "Enter new key to replace" : "AIza…"}
+            />
+          </Field>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-sm text-slate-400">
-        <h2 className="font-medium text-white mb-2">About this tool</h2>
+          <Field
+            label="Your name"
+            hint="Used to fill {{my_name}} in templates"
+          >
+            <Input
+              value={senderName}
+              onChange={(e) => setSenderName(e.target.value)}
+              placeholder="Alex Rivera"
+            />
+          </Field>
+
+          <div className="flex items-center gap-3">
+            <Button type="submit" variant="primary">
+              Save settings
+            </Button>
+            {saved && <span className="text-sm text-good">Saved ✓</span>}
+          </div>
+        </form>
+      </Card>
+
+      <Card className="text-sm text-ink-dim">
+        <h2 className="font-mono text-xs tracking-[0.14em] uppercase text-ink-dim mb-2">
+          About this tool
+        </h2>
         <p>
           Creator Scout searches the public YouTube Data API to discover
-          channels by niche, saves promising creators to a local pipeline, and
+          channels by niche, saves promising creators to your pipeline, and
           helps you draft outreach. Contact emails are published by creators on
           their channel&apos;s About page — this tool links you there rather
           than scraping, keeping usage within YouTube&apos;s Terms of Service.
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

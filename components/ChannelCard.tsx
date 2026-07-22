@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { formatCount, channelUrl } from "@/lib/format";
+import { Card } from "@/components/ui/Card";
+import { Button, ButtonLink } from "@/components/ui/Button";
 
 export interface SearchChannel {
   id: string;
@@ -25,67 +27,71 @@ export default function ChannelCard({
   onSave: (c: SearchChannel) => void;
 }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 flex flex-col gap-3">
+    <Card className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
         {channel.thumbnail ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={channel.thumbnail}
             alt=""
-            className="w-14 h-14 rounded-full shrink-0 object-cover"
+            className="w-14 h-14 shrink-0 object-cover border border-line"
           />
         ) : (
-          <div className="w-14 h-14 rounded-full shrink-0 bg-slate-800" />
+          <div className="w-14 h-14 shrink-0 bg-surface-2 border border-line" />
         )}
         <div className="min-w-0">
           <Link
             href={`/channel/${channel.id}`}
-            className="font-medium text-white hover:underline block truncate"
+            className="font-semibold text-ink hover:text-accent block truncate"
           >
             {channel.title}
           </Link>
-          <div className="text-xs text-slate-400 flex gap-2 flex-wrap mt-0.5">
-            <span>{formatCount(channel.subscriberCount)} subs</span>
-            <span>{formatCount(channel.videoCount)} videos</span>
-            <span>{formatCount(channel.viewCount)} views</span>
-            {channel.country && <span>{channel.country}</span>}
+          <div className="font-mono text-[11px] text-ink-dim flex gap-2 flex-wrap mt-1">
+            <span className="text-ink">{formatCount(channel.subscriberCount)}</span>
+            <span>subs</span>
+            <span className="text-line-strong">·</span>
+            <span>{formatCount(channel.videoCount)} vids</span>
+            {channel.country && (
+              <>
+                <span className="text-line-strong">·</span>
+                <span>{channel.country}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {channel.description && (
-        <p className="text-sm text-slate-400 line-clamp-2">
-          {channel.description}
-        </p>
+        <p className="text-sm text-ink-dim line-clamp-2">{channel.description}</p>
       )}
 
       {channel.matchedVideos && channel.matchedVideos.length > 0 && (
-        <p className="text-xs text-slate-500 line-clamp-1">
-          Matched video: “{channel.matchedVideos[0].title}”
+        <p className="font-mono text-[11px] text-ink-dim/80 line-clamp-1 border-l-2 border-accent/50 pl-2">
+          matched: {channel.matchedVideos[0].title}
         </p>
       )}
 
-      <div className="mt-auto flex items-center gap-2 text-sm">
-        <button
+      <div className="mt-auto flex items-center gap-2 pt-1">
+        <Button
+          size="sm"
+          variant={channel.saved ? "default" : "primary"}
           onClick={() => onSave(channel)}
           disabled={channel.saved}
-          className={`px-3 py-1.5 rounded-md font-medium ${
-            channel.saved
-              ? "bg-emerald-900/50 text-emerald-300 cursor-default"
-              : "bg-red-600 hover:bg-red-500 text-white"
-          }`}
+          className={channel.saved ? "!text-good !border-good/40" : ""}
         >
           {channel.saved ? "✓ Saved" : "Save for outreach"}
-        </button>
-        <a
+        </Button>
+        <ButtonLink
+          size="sm"
+          variant="ghost"
           href={channelUrl(channel.id, channel.customUrl)}
+          external
           target="_blank"
           rel="noreferrer"
-          className="px-3 py-1.5 rounded-md text-slate-300 hover:bg-slate-800"
         >
-          View on YouTube ↗
-        </a>
+          YouTube ↗
+        </ButtonLink>
       </div>
-    </div>
+    </Card>
   );
 }
