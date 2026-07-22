@@ -14,12 +14,15 @@ type Globals = {
 const g = globalThis as unknown as Globals;
 
 function makePool(): mysql.Pool {
-  const host = process.env.DATABASE_HOST;
+  let host = process.env.DATABASE_HOST;
   if (!host) {
     throw new Error(
       "DATABASE_HOST is not set. Configure DATABASE_* environment variables."
     );
   }
+  // "localhost" can resolve to IPv6 ::1, which most MySQL grants (localhost /
+  // 127.0.0.1) don't cover — causing ER_ACCESS_DENIED. Force IPv4.
+  if (host === "localhost") host = "127.0.0.1";
   return mysql.createPool({
     host,
     port: Number(process.env.DATABASE_PORT || 3306),
