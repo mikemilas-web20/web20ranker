@@ -23,16 +23,25 @@ export async function GET() {
   let dbReachable = false;
   let dbErrorCode: string | null = null;
   let dbError: string | null = null;
+  let dbDetail: string | null = null;
   try {
     await pingDb();
     dbReachable = true;
   } catch (e) {
-    const err = e as { code?: string; message?: string };
+    const err = e as { code?: string; message?: string; sqlMessage?: string };
     dbErrorCode = err.code ?? "UNKNOWN";
     dbError =
       process.env.NODE_ENV === "production"
         ? null
         : (err.message ?? String(e));
+    // For access-denied, surface the host MySQL saw + whether a password was
+    // sent — with the username masked, so it's safe on a public endpoint.
+    const m = /Access denied for user '[^']*'@'([^']*)' \(using password: (YES|NO)\)/.exec(
+      err.sqlMessage ?? err.message ?? ""
+    );
+    if (m) {
+      dbDetail = `MySQL saw the connection from host '${m[1]}', using password: ${m[2]}`;
+    }
   }
 
   const ok = dbReachable && env.AUTH_SECRET;
@@ -40,7 +49,12 @@ export async function GET() {
     {
       ok,
       env,
-      database: { reachable: dbReachable, code: dbErrorCode, error: dbError },
+      database: {
+        reachable: dbReachable,
+        code: dbErrorCode,
+        detail: dbDetail,
+        error: dbError,
+      },
       hint: HINTS[dbErrorCode ?? ""] ?? undefined,
     },
     { status: ok ? 200 : 503 }
