@@ -90,38 +90,34 @@ function toChannelRow(c: typeof channels.$inferSelect): ChannelRow {
   };
 }
 
-export async function listChannelIds(workspaceId: string): Promise<string[]> {
+export async function listChannelIds(projectId: string): Promise<string[]> {
   await ensureReady();
   const rows = await db
     .select({ ytId: channels.ytId })
     .from(channels)
-    .where(eq(channels.workspaceId, workspaceId));
+    .where(eq(channels.projectId, projectId));
   return rows.map((r) => r.ytId);
 }
 
 export async function getChannelRow(
-  workspaceId: string,
+  projectId: string,
   ytId: string
 ): Promise<ChannelRow | null> {
   await ensureReady();
   const rows = await db
     .select()
     .from(channels)
-    .where(
-      and(eq(channels.workspaceId, workspaceId), eq(channels.ytId, ytId))
-    )
+    .where(and(eq(channels.projectId, projectId), eq(channels.ytId, ytId)))
     .limit(1);
   return rows[0] ? toChannelRow(rows[0]) : null;
 }
 
-export async function listChannels(
-  workspaceId: string
-): Promise<ChannelRow[]> {
+export async function listChannels(projectId: string): Promise<ChannelRow[]> {
   await ensureReady();
   const rows = await db
     .select()
     .from(channels)
-    .where(eq(channels.workspaceId, workspaceId));
+    .where(eq(channels.projectId, projectId));
   return rows
     .map(toChannelRow)
     .sort((a, b) => b.saved_at.localeCompare(a.saved_at));
@@ -141,6 +137,7 @@ export interface ChannelInput {
 }
 
 export async function upsertChannel(
+  projectId: string,
   workspaceId: string,
   input: ChannelInput
 ): Promise<void> {
@@ -159,6 +156,7 @@ export async function upsertChannel(
   await db
     .insert(channels)
     .values({
+      projectId,
       workspaceId,
       ytId: input.id,
       niche: input.niche ?? "",
@@ -171,7 +169,7 @@ const EDITABLE_CHANNEL_FIELDS = ["status", "email", "notes", "niche"] as const;
 export type EditableChannelField = (typeof EDITABLE_CHANNEL_FIELDS)[number];
 
 export async function updateChannel(
-  workspaceId: string,
+  projectId: string,
   ytId: string,
   patch: Partial<Record<EditableChannelField, string>>
 ): Promise<boolean> {
@@ -184,9 +182,7 @@ export async function updateChannel(
   const result = await db
     .update(channels)
     .set(set)
-    .where(
-      and(eq(channels.workspaceId, workspaceId), eq(channels.ytId, ytId))
-    );
+    .where(and(eq(channels.projectId, projectId), eq(channels.ytId, ytId)));
   // mysql2 returns affectedRows via the driver result
   const affected = (result as unknown as [{ affectedRows: number }])[0]
     ?.affectedRows;
@@ -194,15 +190,13 @@ export async function updateChannel(
 }
 
 export async function deleteChannel(
-  workspaceId: string,
+  projectId: string,
   ytId: string
 ): Promise<void> {
   await ensureReady();
   await db
     .delete(channels)
-    .where(
-      and(eq(channels.workspaceId, workspaceId), eq(channels.ytId, ytId))
-    );
+    .where(and(eq(channels.projectId, projectId), eq(channels.ytId, ytId)));
 }
 
 /* ------------------------------- templates -------------------------------- */

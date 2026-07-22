@@ -3,8 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import ProjectSwitcher, { ProjectLite } from "./ProjectSwitcher";
 
 const NAV = [
+  {
+    href: "/projects",
+    label: "Projects",
+    match: (p: string) => p.startsWith("/projects"),
+    icon: (
+      <>
+        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      </>
+    ),
+  },
   {
     href: "/",
     label: "Discover",
@@ -68,7 +79,15 @@ interface SidebarUser {
   workspace: string;
 }
 
-export default function Sidebar({ user }: { user: SidebarUser }) {
+export default function Sidebar({
+  user,
+  projects,
+  activeId,
+}: {
+  user: SidebarUser;
+  projects: ProjectLite[];
+  activeId: string | null;
+}) {
   const pathname = usePathname();
   return (
     <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-line bg-surface">
@@ -80,6 +99,10 @@ export default function Sidebar({ user }: { user: SidebarUser }) {
           <div className="font-bold tracking-tight text-ink">Creator Scout</div>
           <div className="label !text-[9px] !tracking-[0.2em]">Outreach console</div>
         </div>
+      </div>
+
+      <div className="p-3 border-b border-line">
+        <ProjectSwitcher projects={projects} activeId={activeId} />
       </div>
 
       <nav className="flex flex-col gap-1 p-3">

@@ -3,7 +3,13 @@ import mysql from "mysql2/promise";
 import { drizzle, MySql2Database } from "drizzle-orm/mysql2";
 import { eq } from "drizzle-orm";
 import * as schema from "./schema";
-import { users, workspaces, workspaceMembers, templates } from "./schema";
+import {
+  users,
+  workspaces,
+  workspaceMembers,
+  templates,
+  projects,
+} from "./schema";
 import { genId } from "./ids";
 import { hashPassword } from "./password";
 
@@ -75,7 +81,18 @@ const DDL: string[] = [
     expires_at DATETIME NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS projects (
+    id VARCHAR(24) PRIMARY KEY,
+    workspace_id VARCHAR(24) NOT NULL,
+    name VARCHAR(160) NOT NULL,
+    description TEXT,
+    status VARCHAR(16) NOT NULL DEFAULT 'active',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  // Fresh installs get project_id + PK(project_id, yt_id) directly.
+  // Existing Phase-1 tables are upgraded in migrateProjects().
   `CREATE TABLE IF NOT EXISTS channels (
+    project_id VARCHAR(24) NOT NULL,
     workspace_id VARCHAR(24) NOT NULL,
     yt_id VARCHAR(64) NOT NULL,
     title VARCHAR(255) NOT NULL,
@@ -92,7 +109,7 @@ const DDL: string[] = [
     notes TEXT,
     saved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (workspace_id, yt_id)
+    PRIMARY KEY (project_id, yt_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS templates (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -181,6 +198,65 @@ async function seedOwner() {
   }
 }
 
+/** Ensures every workspace has at least one project (default "General"). */
+async function ensureDefaultProjects() {
+  const wsRows = await db.select({ id: workspaces.id }).from(workspaces);
+  for (const ws of wsRows) {
+    const existing = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.workspaceId, ws.id))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(projects).values({
+        id: genId(),
+        workspaceId: ws.id,
+        name: "General",
+        status: "active",
+      });
+    }
+  }
+}
+
+/**
+ * Upgrade Phase-1 channels (keyed by workspace) to be project-scoped:
+ * add project_id, backfill each workspace's channels into its default
+ * project, then re-key on (project_id, yt_id). Runs once; idempotent.
+ */
+async function migrateChannelsToProjects() {
+  const [cols] = await pool.query(
+    `SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'channels'
+       AND COLUMN_NAME = 'project_id'`
+  );
+  const hasCol = (cols as Array<{ n: number }>)[0].n > 0;
+  if (hasCol) return; // fresh install or already migrated
+
+  await pool.query(
+    "ALTER TABLE channels ADD COLUMN project_id VARCHAR(24) NOT NULL DEFAULT '' FIRST"
+  );
+
+  const wsRows = await db.select({ id: workspaces.id }).from(workspaces);
+  for (const ws of wsRows) {
+    const proj = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.workspaceId, ws.id))
+      .orderBy(projects.createdAt)
+      .limit(1);
+    if (proj.length === 0) continue;
+    await pool.query(
+      `UPDATE channels SET project_id = ?
+       WHERE workspace_id = ? AND (project_id = '' OR project_id IS NULL)`,
+      [proj[0].id, ws.id]
+    );
+  }
+
+  await pool.query(
+    "ALTER TABLE channels DROP PRIMARY KEY, ADD PRIMARY KEY (project_id, yt_id)"
+  );
+}
+
 /** Lightweight connectivity check for the health endpoint. */
 export async function pingDb(): Promise<void> {
   await pool.query("SELECT 1");
@@ -192,6 +268,8 @@ export function ensureReady(): Promise<void> {
     g._ready = (async () => {
       await migrate();
       await seedOwner();
+      await ensureDefaultProjects();
+      await migrateChannelsToProjects();
     })();
   }
   return g._ready;

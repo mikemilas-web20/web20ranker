@@ -7,6 +7,7 @@ import {
 } from "@/lib/youtube";
 import { listChannelIds } from "@/lib/db";
 import { requireApiSession, resolveApiKey } from "@/lib/apiauth";
+import { getActiveProject } from "@/lib/projects";
 
 export async function GET(req: NextRequest) {
   const guard = await requireApiSession();
@@ -47,7 +48,10 @@ export async function GET(req: NextRequest) {
     if (maxSubs > 0)
       channels = channels.filter((c) => c.subscriberCount <= maxSubs);
 
-    const savedIds = new Set(await listChannelIds(wid));
+    const active = await getActiveProject(wid);
+    const savedIds = new Set(
+      active ? await listChannelIds(active.id) : []
+    );
 
     return NextResponse.json({
       channels: channels.map((c) => ({ ...c, saved: savedIds.has(c.id) })),

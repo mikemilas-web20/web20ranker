@@ -55,9 +55,21 @@ export const invites = mysqlTable("invites", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const projects = mysqlTable("projects", {
+  id: varchar("id", { length: 24 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 24 }).notNull(),
+  name: varchar("name", { length: 160 }).notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 16 }).notNull().default("active"),
+  createdAt: datetime("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const channels = mysqlTable(
   "channels",
   {
+    projectId: varchar("project_id", { length: 24 }).notNull(),
     workspaceId: varchar("workspace_id", { length: 24 }).notNull(),
     ytId: varchar("yt_id", { length: 64 }).notNull(),
     title: varchar("title", { length: 255 }).notNull(),
@@ -79,7 +91,7 @@ export const channels = mysqlTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (t) => [primaryKey({ columns: [t.workspaceId, t.ytId] })]
+  (t) => [primaryKey({ columns: [t.projectId, t.ytId] })]
 );
 
 export const templates = mysqlTable("templates", {

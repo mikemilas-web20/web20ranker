@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getChannel, getRecentVideos, YouTubeApiError } from "@/lib/youtube";
 import { getChannelRow } from "@/lib/db";
 import { requireApiSession, resolveApiKey } from "@/lib/apiauth";
+import { getActiveProject } from "@/lib/projects";
 
 export async function GET(
   _req: NextRequest,
@@ -21,8 +22,9 @@ export async function GET(
     if (!channel) {
       return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
-    const saved = await getChannelRow(wid, id);
-    return NextResponse.json({ channel, videos, saved });
+    const active = await getActiveProject(wid);
+    const saved = active ? await getChannelRow(active.id, id) : null;
+    return NextResponse.json({ channel, videos, saved, project: active });
   } catch (e) {
     if (e instanceof YouTubeApiError) {
       return NextResponse.json({ error: e.message }, { status: e.status });

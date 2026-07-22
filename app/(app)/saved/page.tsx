@@ -25,6 +25,7 @@ interface SavedChannel {
 
 export default function SavedPage() {
   const [channels, setChannels] = useState<SavedChannel[]>([]);
+  const [projectName, setProjectName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
   const [nicheFilter, setNicheFilter] = useState("");
@@ -32,7 +33,10 @@ export default function SavedPage() {
   useEffect(() => {
     fetch("/api/saved")
       .then((r) => r.json())
-      .then((j) => setChannels(j.channels))
+      .then((j) => {
+        setChannels(j.channels);
+        setProjectName(j.project?.name ?? null);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -71,7 +75,14 @@ export default function SavedPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">Pipeline</h1>
           <p className="text-ink-dim text-sm mt-1">
-            Your creator pipeline — update status as outreach progresses.
+            {projectName ? (
+              <>
+                Project <span className="text-accent">{projectName}</span> —
+                update status as outreach progresses.
+              </>
+            ) : (
+              "Your creator pipeline — update status as outreach progresses."
+            )}
           </p>
         </div>
         <div className="flex gap-2">

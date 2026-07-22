@@ -6,6 +6,7 @@ import {
   EditableChannelField,
 } from "@/lib/db";
 import { requireApiSession } from "@/lib/apiauth";
+import { getActiveProject } from "@/lib/projects";
 
 const EDITABLE_FIELDS: EditableChannelField[] = [
   "status",
@@ -40,7 +41,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
-  const ok = await updateChannel(guard.session.wid, id, patch);
+  const active = await getActiveProject(guard.session.wid);
+  if (!active) {
+    return NextResponse.json({ error: "No active project" }, { status: 400 });
+  }
+  const ok = await updateChannel(active.id, id, patch);
   if (!ok) {
     return NextResponse.json({ error: "Channel not saved" }, { status: 404 });
   }
@@ -55,6 +60,7 @@ export async function DELETE(
   if (guard.response) return guard.response;
 
   const { id } = await params;
-  await deleteChannel(guard.session.wid, id);
+  const active = await getActiveProject(guard.session.wid);
+  if (active) await deleteChannel(active.id, id);
   return NextResponse.json({ ok: true });
 }

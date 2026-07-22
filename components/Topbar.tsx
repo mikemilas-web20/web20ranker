@@ -21,12 +21,24 @@ const TITLES: { test: (p: string) => boolean; label: string }[] = [
   { test: (p) => p.startsWith("/settings"), label: "Settings" },
 ];
 
-export default function Topbar({ user }: { user: TopbarUser }) {
+export default function Topbar({
+  user,
+  activeProject,
+}: {
+  user: TopbarUser;
+  activeProject: string | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const title = TITLES.find((t) => t.test(pathname))?.label ?? "Creator Scout";
+  // Show the active project alongside the title on project-scoped screens.
+  const showProject =
+    activeProject &&
+    (pathname === "/" ||
+      pathname.startsWith("/saved") ||
+      pathname.startsWith("/channel"));
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -54,8 +66,16 @@ export default function Topbar({ user }: { user: TopbarUser }) {
         </span>
       </Link>
 
-      <h1 className="font-mono text-xs tracking-[0.16em] uppercase text-ink-dim">
+      <h1 className="font-mono text-xs tracking-[0.16em] uppercase text-ink-dim flex items-center gap-2">
         {title}
+        {showProject && (
+          <>
+            <span className="text-line-strong">/</span>
+            <span className="text-accent normal-case tracking-normal">
+              {activeProject}
+            </span>
+          </>
+        )}
       </h1>
 
       <div className="ml-auto flex items-center gap-3">

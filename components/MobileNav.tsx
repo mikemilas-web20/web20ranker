@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
 const NAV = [
+  {
+    href: "/projects",
+    label: "Projects",
+    match: (p: string) => p.startsWith("/projects"),
+  },
   { href: "/", label: "Discover", match: (p: string) => p === "/" },
   {
     href: "/saved",

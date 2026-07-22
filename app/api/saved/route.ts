@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listChannels, upsertChannel } from "@/lib/db";
 import { requireApiSession } from "@/lib/apiauth";
+import { getActiveProject } from "@/lib/projects";
 
 export async function GET() {
   const guard = await requireApiSession();
   if (guard.response) return guard.response;
-  return NextResponse.json({ channels: await listChannels(guard.session.wid) });
+  const active = await getActiveProject(guard.session.wid);
+  return NextResponse.json({
+    channels: active ? await listChannels(active.id) : [],
+    project: active,
+  });
 }
 
 export async function POST(req: NextRequest) {
   const guard = await requireApiSession();
   if (guard.response) return guard.response;
+  const { wid } = guard.session;
+
+  const active = await getActiveProject(wid);
+  if (!active) {
+    return NextResponse.json(
+      { error: "No active project. Create a project first." },
+      { status: 400 }
+    );
+  }
 
   const body = await req.json();
   const { id, title } = body;
@@ -20,7 +34,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  await upsertChannel(guard.session.wid, {
+  await upsertChannel(active.id, wid, {
     id,
     title,
     description: body.description,
