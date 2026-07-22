@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { listTemplates, createTemplate } from "@/lib/db";
 
 export async function GET() {
-  const rows = getDb()
-    .prepare("SELECT * FROM templates ORDER BY id")
-    .all();
-  return NextResponse.json({ templates: rows });
+  return NextResponse.json({ templates: listTemplates() });
 }
 
 export async function POST(req: NextRequest) {
@@ -16,8 +13,6 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const result = getDb()
-    .prepare("INSERT INTO templates (name, subject, body) VALUES (?, ?, ?)")
-    .run(name, subject, body);
-  return NextResponse.json({ ok: true, id: result.lastInsertRowid });
+  const id = createTemplate(name, subject, body);
+  return NextResponse.json({ ok: true, id });
 }

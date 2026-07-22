@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { updateTemplate, deleteTemplate } from "@/lib/db";
 
 export async function PATCH(
   req: NextRequest,
@@ -13,10 +13,8 @@ export async function PATCH(
       { status: 400 }
     );
   }
-  const result = getDb()
-    .prepare("UPDATE templates SET name = ?, subject = ?, body = ? WHERE id = ?")
-    .run(name, subject, body, id);
-  if (result.changes === 0) {
+  const ok = updateTemplate(Number(id), name, subject, body);
+  if (!ok) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
   return NextResponse.json({ ok: true });
@@ -27,6 +25,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  getDb().prepare("DELETE FROM templates WHERE id = ?").run(id);
+  deleteTemplate(Number(id));
   return NextResponse.json({ ok: true });
 }

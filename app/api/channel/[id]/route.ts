@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getChannel, getRecentVideos, YouTubeApiError } from "@/lib/youtube";
-import { getDb } from "@/lib/db";
+import { getChannelRow } from "@/lib/db";
 
 export async function GET(
   _req: NextRequest,
@@ -15,10 +15,8 @@ export async function GET(
     if (!channel) {
       return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
-    const saved = getDb()
-      .prepare("SELECT * FROM channels WHERE id = ?")
-      .get(id);
-    return NextResponse.json({ channel, videos, saved: saved ?? null });
+    const saved = getChannelRow(id);
+    return NextResponse.json({ channel, videos, saved });
   } catch (e) {
     if (e instanceof YouTubeApiError) {
       return NextResponse.json({ error: e.message }, { status: e.status });

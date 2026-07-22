@@ -5,7 +5,7 @@ import {
   YouTubeApiError,
   ChannelResult,
 } from "@/lib/youtube";
-import { getDb } from "@/lib/db";
+import { listChannelIds } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -39,11 +39,7 @@ export async function GET(req: NextRequest) {
     if (minSubs > 0) channels = channels.filter((c) => c.subscriberCount >= minSubs);
     if (maxSubs > 0) channels = channels.filter((c) => c.subscriberCount <= maxSubs);
 
-    const savedIds = new Set(
-      (getDb().prepare("SELECT id FROM channels").all() as { id: string }[]).map(
-        (r) => r.id
-      )
-    );
+    const savedIds = new Set(listChannelIds());
 
     return NextResponse.json({
       channels: channels.map((c) => ({ ...c, saved: savedIds.has(c.id) })),
