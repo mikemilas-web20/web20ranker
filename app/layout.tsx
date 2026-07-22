@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
-import Topbar from "@/components/Topbar";
-import MobileNav from "@/components/MobileNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,18 +34,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
-      <body className="text-ink">
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className="flex-1 flex flex-col min-w-0">
-            <Topbar />
-            <MobileNav />
-            <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8">
-              <div className="mx-auto w-full max-w-6xl">{children}</div>
-            </main>
-          </div>
-        </div>
-      </body>
+      <body className="text-ink">{children}</body>
     </html>
   );
 }

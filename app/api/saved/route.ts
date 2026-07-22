@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listChannels, upsertChannel } from "@/lib/db";
+import { requireApiSession } from "@/lib/apiauth";
 
 export async function GET() {
-  return NextResponse.json({ channels: listChannels() });
+  const guard = await requireApiSession();
+  if (guard.response) return guard.response;
+  return NextResponse.json({ channels: await listChannels(guard.session.wid) });
 }
 
 export async function POST(req: NextRequest) {
+  const guard = await requireApiSession();
+  if (guard.response) return guard.response;
+
   const body = await req.json();
   const { id, title } = body;
   if (!id || !title) {
@@ -14,7 +20,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  upsertChannel({
+  await upsertChannel(guard.session.wid, {
     id,
     title,
     description: body.description,

@@ -37,6 +37,18 @@ const NAV = [
     ),
   },
   {
+    href: "/team",
+    label: "Team",
+    match: (p: string) => p.startsWith("/team"),
+    icon: (
+      <>
+        <circle cx="9" cy="8" r="3" />
+        <path d="M3 20a6 6 0 0 1 12 0" />
+        <path d="M16 5.5a3 3 0 0 1 0 5.4M21 20a6 6 0 0 0-4-5.6" />
+      </>
+    ),
+  },
+  {
     href: "/settings",
     label: "Settings",
     match: (p: string) => p.startsWith("/settings"),
@@ -49,7 +61,14 @@ const NAV = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarUser {
+  name: string;
+  email: string;
+  role: string;
+  workspace: string;
+}
+
+export default function Sidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
   return (
     <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-line bg-surface">
@@ -99,9 +118,9 @@ export default function Sidebar() {
       <div className="mt-auto p-3">
         <div className="border border-line bg-surface-2 p-3">
           <div className="label mb-1">Workspace</div>
-          <div className="text-sm text-ink truncate">My Workspace</div>
+          <div className="text-sm text-ink truncate">{user.workspace}</div>
           <div className="label !tracking-[0.1em] mt-1 text-ink-dim/70">
-            invite-only · free
+            {user.role === "owner" ? "owner" : "member"} · invite-only
           </div>
         </div>
       </div>

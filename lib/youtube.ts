@@ -1,5 +1,3 @@
-import { getSetting } from "./db";
-
 const API_BASE = "https://www.googleapis.com/youtube/v3";
 
 export class YouTubeApiError extends Error {
@@ -10,13 +8,12 @@ export class YouTubeApiError extends Error {
   }
 }
 
-export function getApiKey(): string | null {
-  return getSetting("youtube_api_key") || process.env.YOUTUBE_API_KEY || null;
-}
-
-async function yt(endpoint: string, params: Record<string, string>) {
-  const key = getApiKey();
-  if (!key) {
+async function yt(
+  apiKey: string | null,
+  endpoint: string,
+  params: Record<string, string>
+) {
+  if (!apiKey) {
     throw new YouTubeApiError(
       "No YouTube API key configured. Add one in Settings.",
       428
@@ -24,7 +21,7 @@ async function yt(endpoint: string, params: Record<string, string>) {
   }
   const url = new URL(`${API_BASE}/${endpoint}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  url.searchParams.set("key", key);
+  url.searchParams.set("key", apiKey);
 
   const res = await fetch(url.toString());
   const json = await res.json();
@@ -93,13 +90,16 @@ function mapChannel(c: RawChannel): ChannelResult {
   };
 }
 
-async function listChannels(ids: string[]): Promise<ChannelResult[]> {
+async function listChannels(
+  apiKey: string,
+  ids: string[]
+): Promise<ChannelResult[]> {
   if (ids.length === 0) return [];
   const results: ChannelResult[] = [];
   // channels.list accepts up to 50 ids per call
   for (let i = 0; i < ids.length; i += 50) {
     const batch = ids.slice(i, i + 50);
-    const json = await yt("channels", {
+    const json = await yt(apiKey, "channels", {
       part: "snippet,statistics",
       id: batch.join(","),
       maxResults: "50",
@@ -120,6 +120,7 @@ export interface SearchOptions {
 
 /** Direct channel search: good when the niche keyword appears in channel names/descriptions. */
 export async function searchChannels(
+  apiKey: string,
   q: string,
   opts: SearchOptions = {}
 ): Promise<ChannelResult[]> {
@@ -130,11 +131,11 @@ export async function searchChannels(
     maxResults: String(opts.maxResults ?? 25),
   };
   if (opts.regionCode) params.regionCode = opts.regionCode;
-  const json = await yt("search", params);
+  const json = await yt(apiKey, "search", params);
   const ids = (json.items || [])
     .map((i: { snippet?: { channelId?: string } }) => i.snippet?.channelId)
     .filter(Boolean);
-  return listChannels(ids);
+  return listChannels(apiKey, ids);
 }
 
 /**
@@ -143,6 +144,7 @@ export async function searchChannels(
  * mention the niche.
  */
 export async function discoverChannelsViaVideos(
+  apiKey: string,
   q: string,
   opts: SearchOptions = {}
 ): Promise<ChannelResult[]> {
@@ -155,7 +157,7 @@ export async function discoverChannelsViaVideos(
   };
   if (opts.regionCode) params.regionCode = opts.regionCode;
   if (opts.publishedAfter) params.publishedAfter = opts.publishedAfter;
-  const json = await yt("search", params);
+  const json = await yt(apiKey, "search", params);
 
   const videosByChannel = new Map<string, { id: string; title: string }[]>();
   const ids: string[] = [];
@@ -172,13 +174,19 @@ export async function discoverChannelsViaVideos(
     });
   }
 
-  const channels = await listChannels(ids.slice(0, opts.maxResults ?? 25));
+  const channels = await listChannels(
+    apiKey,
+    ids.slice(0, opts.maxResults ?? 25)
+  );
   for (const ch of channels) ch.matchedVideos = videosByChannel.get(ch.id);
   return channels;
 }
 
-export async function getChannel(id: string): Promise<ChannelResult | null> {
-  const json = await yt("channels", {
+export async function getChannel(
+  apiKey: string,
+  id: string
+): Promise<ChannelResult | null> {
+  const json = await yt(apiKey, "channels", {
     part: "snippet,statistics,contentDetails",
     id,
   });
@@ -189,10 +197,11 @@ export async function getChannel(id: string): Promise<ChannelResult | null> {
 
 /** Recent uploads via the channel's uploads playlist (much cheaper than search). */
 export async function getRecentVideos(
+  apiKey: string,
   channelId: string,
   max = 6
 ): Promise<VideoResult[]> {
-  const chJson = await yt("channels", {
+  const chJson = await yt(apiKey, "channels", {
     part: "contentDetails",
     id: channelId,
   });
@@ -202,7 +211,7 @@ export async function getRecentVideos(
 
   let plJson;
   try {
-    plJson = await yt("playlistItems", {
+    plJson = await yt(apiKey, "playlistItems", {
       part: "snippet,contentDetails",
       playlistId: uploads,
       maxResults: String(max),

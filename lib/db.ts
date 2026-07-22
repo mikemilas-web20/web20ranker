@@ -1,21 +1,16 @@
-import fs from "fs";
-import path from "path";
-
-/**
- * Pure-JS JSON-file store. No native dependencies, so it installs and runs on
- * any Node host (including shared hosting where node-gyp is unavailable).
- * Data lives in data/db.json under the app directory.
- */
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "db.json");
+import "server-only";
+import { and, eq } from "drizzle-orm";
+import { db, ensureReady } from "./drizzle";
+import { channels, templates, settings } from "./schema";
+import type { ChannelStatus } from "./statuses";
 
 export { CHANNEL_STATUSES } from "./statuses";
 export type { ChannelStatus } from "./statuses";
-import type { ChannelStatus } from "./statuses";
+
+/* --------- shapes returned to the client (snake_case, unchanged API) -------- */
 
 export interface ChannelRow {
-  id: string;
+  id: string; // youtube channel id (external identifier)
   title: string;
   description: string;
   thumbnail: string;
@@ -40,115 +35,100 @@ export interface TemplateRow {
   created_at: string;
 }
 
-interface DbShape {
-  settings: Record<string, string>;
-  channels: ChannelRow[];
-  templates: TemplateRow[];
-  templateSeq: number;
+/* -------------------------------- settings -------------------------------- */
+
+export async function getSetting(
+  workspaceId: string,
+  key: string
+): Promise<string | null> {
+  await ensureReady();
+  const rows = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(and(eq(settings.workspaceId, workspaceId), eq(settings.key, key)))
+    .limit(1);
+  return rows[0]?.value ?? null;
 }
 
-let cache: DbShape | null = null;
-
-function now(): string {
-  return new Date().toISOString();
+export async function setSetting(
+  workspaceId: string,
+  key: string,
+  value: string
+): Promise<void> {
+  await ensureReady();
+  await db
+    .insert(settings)
+    .values({ workspaceId, key, value })
+    .onDuplicateKeyUpdate({ set: { value } });
 }
 
-function seed(): DbShape {
-  const ts = now();
+/* -------------------------------- channels -------------------------------- */
+
+function toChannelRow(c: typeof channels.$inferSelect): ChannelRow {
   return {
-    settings: {},
-    channels: [],
-    templateSeq: 2,
-    templates: [
-      {
-        id: 1,
-        name: "Collaboration intro",
-        subject: "Collaboration idea for {{channel_name}}",
-        body: `Hi {{channel_name}} team,
-
-I've been following your channel ({{channel_url}}) and really enjoyed "{{recent_video_title}}". With {{subscribers}} subscribers in the {{niche}} space, your audience is exactly who we'd love to reach.
-
-I'd love to explore a collaboration — whether that's a sponsored segment, a product review, or something more creative.
-
-Would you be open to a quick chat?
-
-Best,
-{{my_name}}`,
-        created_at: ts,
-      },
-      {
-        id: 2,
-        name: "Sponsorship offer",
-        subject: "Sponsorship opportunity for {{channel_name}}",
-        body: `Hey {{channel_name}},
-
-I work with brands in the {{niche}} niche and think your channel would be a great fit for a paid sponsorship.
-
-If you're taking on sponsors, I'd love to share the details — rates, deliverables, and timeline are all flexible.
-
-Thanks,
-{{my_name}}`,
-        created_at: ts,
-      },
-    ],
+    id: c.ytId,
+    title: c.title,
+    description: c.description ?? "",
+    thumbnail: c.thumbnail ?? "",
+    custom_url: c.customUrl ?? "",
+    country: c.country ?? "",
+    subscriber_count: c.subscriberCount ?? 0,
+    video_count: c.videoCount ?? 0,
+    view_count: c.viewCount ?? 0,
+    niche: c.niche ?? "",
+    status: (c.status as ChannelStatus) ?? "to_contact",
+    email: c.email ?? "",
+    notes: c.notes ?? "",
+    saved_at: (c.savedAt instanceof Date
+      ? c.savedAt
+      : new Date(c.savedAt)
+    ).toISOString(),
+    updated_at: (c.updatedAt instanceof Date
+      ? c.updatedAt
+      : new Date(c.updatedAt)
+    ).toISOString(),
   };
 }
 
-function load(): DbShape {
-  if (cache) return cache;
-  try {
-    const raw = fs.readFileSync(DB_PATH, "utf8");
-    const parsed = JSON.parse(raw) as Partial<DbShape>;
-    cache = {
-      settings: parsed.settings ?? {},
-      channels: parsed.channels ?? [],
-      templates: parsed.templates ?? [],
-      templateSeq: parsed.templateSeq ?? (parsed.templates?.length ?? 0),
-    };
-  } catch {
-    cache = seed();
-    persist();
-  }
-  return cache;
+export async function listChannelIds(workspaceId: string): Promise<string[]> {
+  await ensureReady();
+  const rows = await db
+    .select({ ytId: channels.ytId })
+    .from(channels)
+    .where(eq(channels.workspaceId, workspaceId));
+  return rows.map((r) => r.ytId);
 }
 
-function persist() {
-  if (!cache) return;
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  const tmp = `${DB_PATH}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(cache, null, 2));
-  fs.renameSync(tmp, DB_PATH); // atomic replace
+export async function getChannelRow(
+  workspaceId: string,
+  ytId: string
+): Promise<ChannelRow | null> {
+  await ensureReady();
+  const rows = await db
+    .select()
+    .from(channels)
+    .where(
+      and(eq(channels.workspaceId, workspaceId), eq(channels.ytId, ytId))
+    )
+    .limit(1);
+  return rows[0] ? toChannelRow(rows[0]) : null;
 }
 
-/* ------------------------------- settings ------------------------------- */
-
-export function getSetting(key: string): string | null {
-  return load().settings[key] ?? null;
-}
-
-export function setSetting(key: string, value: string) {
-  load().settings[key] = value;
-  persist();
-}
-
-/* ------------------------------- channels ------------------------------- */
-
-export function listChannelIds(): string[] {
-  return load().channels.map((c) => c.id);
-}
-
-export function getChannelRow(id: string): ChannelRow | null {
-  return load().channels.find((c) => c.id === id) ?? null;
-}
-
-export function listChannels(): ChannelRow[] {
-  return [...load().channels].sort((a, b) =>
-    b.saved_at.localeCompare(a.saved_at)
-  );
+export async function listChannels(
+  workspaceId: string
+): Promise<ChannelRow[]> {
+  await ensureReady();
+  const rows = await db
+    .select()
+    .from(channels)
+    .where(eq(channels.workspaceId, workspaceId));
+  return rows
+    .map(toChannelRow)
+    .sort((a, b) => b.saved_at.localeCompare(a.saved_at));
 }
 
 export interface ChannelInput {
-  id: string;
+  id: string; // youtube channel id
   title: string;
   description?: string;
   thumbnail?: string;
@@ -160,104 +140,138 @@ export interface ChannelInput {
   niche?: string;
 }
 
-export function upsertChannel(input: ChannelInput) {
-  const db = load();
-  const existing = db.channels.find((c) => c.id === input.id);
-  const ts = now();
-  if (existing) {
-    Object.assign(existing, {
-      title: input.title,
-      description: input.description ?? "",
-      thumbnail: input.thumbnail ?? "",
-      custom_url: input.customUrl ?? "",
-      country: input.country ?? "",
-      subscriber_count: input.subscriberCount ?? 0,
-      video_count: input.videoCount ?? 0,
-      view_count: input.viewCount ?? 0,
-      updated_at: ts,
-    });
-  } else {
-    db.channels.push({
-      id: input.id,
-      title: input.title,
-      description: input.description ?? "",
-      thumbnail: input.thumbnail ?? "",
-      custom_url: input.customUrl ?? "",
-      country: input.country ?? "",
-      subscriber_count: input.subscriberCount ?? 0,
-      video_count: input.videoCount ?? 0,
-      view_count: input.viewCount ?? 0,
+export async function upsertChannel(
+  workspaceId: string,
+  input: ChannelInput
+): Promise<void> {
+  await ensureReady();
+  const base = {
+    title: input.title,
+    description: input.description ?? "",
+    thumbnail: input.thumbnail ?? "",
+    customUrl: input.customUrl ?? "",
+    country: input.country ?? "",
+    subscriberCount: input.subscriberCount ?? 0,
+    videoCount: input.videoCount ?? 0,
+    viewCount: input.viewCount ?? 0,
+    updatedAt: new Date(),
+  };
+  await db
+    .insert(channels)
+    .values({
+      workspaceId,
+      ytId: input.id,
       niche: input.niche ?? "",
-      status: "to_contact",
-      email: "",
-      notes: "",
-      saved_at: ts,
-      updated_at: ts,
-    });
-  }
-  persist();
+      ...base,
+    })
+    .onDuplicateKeyUpdate({ set: base });
 }
 
 const EDITABLE_CHANNEL_FIELDS = ["status", "email", "notes", "niche"] as const;
 export type EditableChannelField = (typeof EDITABLE_CHANNEL_FIELDS)[number];
 
-export function updateChannel(
-  id: string,
+export async function updateChannel(
+  workspaceId: string,
+  ytId: string,
   patch: Partial<Record<EditableChannelField, string>>
-): boolean {
-  const channel = load().channels.find((c) => c.id === id);
-  if (!channel) return false;
+): Promise<boolean> {
+  await ensureReady();
+  const set: Record<string, string | Date> = { updatedAt: new Date() };
   for (const field of EDITABLE_CHANNEL_FIELDS) {
     const value = patch[field];
-    if (typeof value === "string") {
-      if (field === "status") channel.status = value as ChannelStatus;
-      else channel[field] = value;
-    }
+    if (typeof value === "string") set[field] = value;
   }
-  channel.updated_at = now();
-  persist();
-  return true;
+  const result = await db
+    .update(channels)
+    .set(set)
+    .where(
+      and(eq(channels.workspaceId, workspaceId), eq(channels.ytId, ytId))
+    );
+  // mysql2 returns affectedRows via the driver result
+  const affected = (result as unknown as [{ affectedRows: number }])[0]
+    ?.affectedRows;
+  return affected ? affected > 0 : true;
 }
 
-export function deleteChannel(id: string) {
-  const db = load();
-  db.channels = db.channels.filter((c) => c.id !== id);
-  persist();
+export async function deleteChannel(
+  workspaceId: string,
+  ytId: string
+): Promise<void> {
+  await ensureReady();
+  await db
+    .delete(channels)
+    .where(
+      and(eq(channels.workspaceId, workspaceId), eq(channels.ytId, ytId))
+    );
 }
 
-/* ------------------------------ templates ------------------------------- */
+/* ------------------------------- templates -------------------------------- */
 
-export function listTemplates(): TemplateRow[] {
-  return [...load().templates].sort((a, b) => a.id - b.id);
+function toTemplateRow(t: typeof templates.$inferSelect): TemplateRow {
+  return {
+    id: t.id,
+    name: t.name,
+    subject: t.subject ?? "",
+    body: t.body,
+    created_at: (t.createdAt instanceof Date
+      ? t.createdAt
+      : new Date(t.createdAt)
+    ).toISOString(),
+  };
 }
 
-export function createTemplate(
+export async function listTemplates(
+  workspaceId: string
+): Promise<TemplateRow[]> {
+  await ensureReady();
+  const rows = await db
+    .select()
+    .from(templates)
+    .where(eq(templates.workspaceId, workspaceId));
+  return rows.map(toTemplateRow).sort((a, b) => a.id - b.id);
+}
+
+export async function createTemplate(
+  workspaceId: string,
   name: string,
   subject: string,
   body: string
-): number {
-  const db = load();
-  const id = ++db.templateSeq;
-  db.templates.push({ id, name, subject, body, created_at: now() });
-  persist();
-  return id;
+): Promise<number> {
+  await ensureReady();
+  const result = await db
+    .insert(templates)
+    .values({ workspaceId, name, subject, body });
+  const insertId = (result as unknown as [{ insertId: number }])[0]?.insertId;
+  return insertId ?? 0;
 }
 
-export function updateTemplate(
+export async function updateTemplate(
+  workspaceId: string,
   id: number,
   name: string,
   subject: string,
   body: string
-): boolean {
-  const template = load().templates.find((t) => t.id === id);
-  if (!template) return false;
-  Object.assign(template, { name, subject, body });
-  persist();
+): Promise<boolean> {
+  await ensureReady();
+  const rows = await db
+    .select({ id: templates.id })
+    .from(templates)
+    .where(and(eq(templates.workspaceId, workspaceId), eq(templates.id, id)))
+    .limit(1);
+  if (rows.length === 0) return false;
+  await db
+    .update(templates)
+    .set({ name, subject, body })
+    .where(and(eq(templates.workspaceId, workspaceId), eq(templates.id, id)));
   return true;
 }
 
-export function deleteTemplate(id: number) {
-  const db = load();
-  db.templates = db.templates.filter((t) => t.id !== id);
-  persist();
+export async function deleteTemplate(
+  workspaceId: string,
+  id: number
+): Promise<void> {
+  await ensureReady();
+  await db
+    .delete(templates)
+    .where(and(eq(templates.workspaceId, workspaceId), eq(templates.id, id)));
 }

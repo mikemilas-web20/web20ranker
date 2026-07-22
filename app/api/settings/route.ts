@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSetting, setSetting } from "@/lib/db";
+import { requireApiSession } from "@/lib/apiauth";
 
 function mask(key: string): string {
   if (key.length <= 8) return "••••";
@@ -7,21 +8,32 @@ function mask(key: string): string {
 }
 
 export async function GET() {
-  const key = getSetting("youtube_api_key") || process.env.YOUTUBE_API_KEY || "";
+  const guard = await requireApiSession();
+  if (guard.response) return guard.response;
+  const { wid } = guard.session;
+
+  const key =
+    (await getSetting(wid, "youtube_api_key")) ||
+    process.env.YOUTUBE_API_KEY ||
+    "";
   return NextResponse.json({
     hasApiKey: Boolean(key),
     apiKeyMasked: key ? mask(key) : "",
-    senderName: getSetting("sender_name") || "",
+    senderName: (await getSetting(wid, "sender_name")) || "",
   });
 }
 
 export async function POST(req: NextRequest) {
+  const guard = await requireApiSession();
+  if (guard.response) return guard.response;
+  const { wid } = guard.session;
+
   const body = await req.json();
   if (typeof body.apiKey === "string" && body.apiKey.trim()) {
-    setSetting("youtube_api_key", body.apiKey.trim());
+    await setSetting(wid, "youtube_api_key", body.apiKey.trim());
   }
   if (typeof body.senderName === "string") {
-    setSetting("sender_name", body.senderName.trim());
+    await setSetting(wid, "sender_name", body.senderName.trim());
   }
   return NextResponse.json({ ok: true });
 }

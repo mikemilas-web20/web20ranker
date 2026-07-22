@@ -6,8 +6,13 @@ import {
   ChannelResult,
 } from "@/lib/youtube";
 import { listChannelIds } from "@/lib/db";
+import { requireApiSession, resolveApiKey } from "@/lib/apiauth";
 
 export async function GET(req: NextRequest) {
+  const guard = await requireApiSession();
+  if (guard.response) return guard.response;
+  const { wid } = guard.session;
+
   const sp = req.nextUrl.searchParams;
   const q = sp.get("q")?.trim();
   if (!q) {
@@ -27,19 +32,22 @@ export async function GET(req: NextRequest) {
       : undefined;
 
   try {
+    const apiKey = await resolveApiKey(wid);
     let channels: ChannelResult[] =
       mode === "channels"
-        ? await searchChannels(q, { regionCode, maxResults })
-        : await discoverChannelsViaVideos(q, {
+        ? await searchChannels(apiKey!, q, { regionCode, maxResults })
+        : await discoverChannelsViaVideos(apiKey!, q, {
             regionCode,
             maxResults,
             publishedAfter,
           });
 
-    if (minSubs > 0) channels = channels.filter((c) => c.subscriberCount >= minSubs);
-    if (maxSubs > 0) channels = channels.filter((c) => c.subscriberCount <= maxSubs);
+    if (minSubs > 0)
+      channels = channels.filter((c) => c.subscriberCount >= minSubs);
+    if (maxSubs > 0)
+      channels = channels.filter((c) => c.subscriberCount <= maxSubs);
 
-    const savedIds = new Set(listChannelIds());
+    const savedIds = new Set(await listChannelIds(wid));
 
     return NextResponse.json({
       channels: channels.map((c) => ({ ...c, saved: savedIds.has(c.id) })),

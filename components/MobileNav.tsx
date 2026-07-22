@@ -17,6 +17,11 @@ const NAV = [
     match: (p: string) => p.startsWith("/templates"),
   },
   {
+    href: "/team",
+    label: "Team",
+    match: (p: string) => p.startsWith("/team"),
+  },
+  {
     href: "/settings",
     label: "Settings",
     match: (p: string) => p.startsWith("/settings"),

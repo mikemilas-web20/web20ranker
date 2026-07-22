@@ -5,6 +5,7 @@ import {
   CHANNEL_STATUSES,
   EditableChannelField,
 } from "@/lib/db";
+import { requireApiSession } from "@/lib/apiauth";
 
 const EDITABLE_FIELDS: EditableChannelField[] = [
   "status",
@@ -17,6 +18,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await requireApiSession();
+  if (guard.response) return guard.response;
+
   const { id } = await params;
   const body = await req.json();
 
@@ -36,7 +40,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
-  const ok = updateChannel(id, patch);
+  const ok = await updateChannel(guard.session.wid, id, patch);
   if (!ok) {
     return NextResponse.json({ error: "Channel not saved" }, { status: 404 });
   }
@@ -47,7 +51,10 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await requireApiSession();
+  if (guard.response) return guard.response;
+
   const { id } = await params;
-  deleteChannel(id);
+  await deleteChannel(guard.session.wid, id);
   return NextResponse.json({ ok: true });
 }
