@@ -10,6 +10,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Input, Textarea, Select, Field } from "@/components/ui/Input";
 import ActivityFeed from "@/components/ActivityFeed";
 import CreatorTasks from "@/components/CreatorTasks";
+import ContactList from "@/components/ContactList";
 
 interface ChannelDetail {
   id: string;
@@ -390,9 +391,10 @@ export default function ChannelPage() {
         </Card>
       </section>
 
-      {/* CRM: follow-ups + activity timeline (once saved) */}
+      {/* CRM: contacts + follow-ups + activity timeline (once saved) */}
       {saved && (
         <section className="grid md:grid-cols-2 gap-6">
+          <ContactList channelId={channel.id} />
           <CreatorTasks channelId={channel.id} channelTitle={channel.title} />
           <ActivityFeed channelId={channel.id} />
         </section>

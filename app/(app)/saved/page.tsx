@@ -6,7 +6,7 @@ import { formatCount, channelUrl, STATUS_LABELS } from "@/lib/format";
 import { CHANNEL_STATUSES } from "@/lib/statuses";
 import { Card } from "@/components/ui/Card";
 import { Input, Select } from "@/components/ui/Input";
-import { ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/Badge";
 import PipelineBoard from "@/components/PipelineBoard";
 
@@ -22,6 +22,7 @@ interface SavedChannel {
   email: string;
   notes: string;
   saved_at: string;
+  contact_count?: number;
 }
 
 export default function SavedPage() {
@@ -31,15 +32,20 @@ export default function SavedPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [nicheFilter, setNicheFilter] = useState("");
   const [view, setView] = useState<"list" | "board">("list");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batchBusy, setBatchBusy] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/saved")
+  function reload() {
+    return fetch("/api/saved")
       .then((r) => r.json())
       .then((j) => {
         setChannels(j.channels);
         setProjectName(j.project?.name ?? null);
-      })
-      .finally(() => setLoading(false));
+      });
+  }
+
+  useEffect(() => {
+    reload().finally(() => setLoading(false));
   }, []);
 
   async function update(id: string, patch: Partial<SavedChannel>) {
@@ -65,6 +71,75 @@ export default function SavedPage() {
       (!statusFilter || c.status === statusFilter) &&
       (!nicheFilter || c.niche === nicheFilter)
   );
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function selectAllFiltered() {
+    setSelected((prev) => {
+      const allSelected = filtered.every((c) => prev.has(c.id));
+      if (allSelected) return new Set();
+      return new Set(filtered.map((c) => c.id));
+    });
+  }
+  const selectedIds = filtered.filter((c) => selected.has(c.id)).map((c) => c.id);
+
+  async function batchStatus(status: string) {
+    if (selectedIds.length === 0 || !status) return;
+    setBatchBusy("status");
+    await fetch("/api/saved/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "status", ids: selectedIds, status }),
+    });
+    await reload();
+    setSelected(new Set());
+    setBatchBusy(null);
+  }
+
+  async function batchEnrich() {
+    if (selectedIds.length === 0) return;
+    setBatchBusy("enrich");
+    const res = await fetch("/api/saved/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "enrich", ids: selectedIds }),
+    });
+    const j = await res.json().catch(() => null);
+    await reload();
+    setBatchBusy(null);
+    if (j?.added != null)
+      alert(`Gathered ${j.added} new contact${j.added === 1 ? "" : "s"} across ${selectedIds.length} creators.`);
+    else if (j?.error) alert(j.error);
+  }
+
+  function exportSelected() {
+    const rows = filtered.filter((c) => selected.has(c.id));
+    const header = ["title", "youtube_id", "subscribers", "niche", "status", "email"];
+    const esc = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [
+      header.join(","),
+      ...rows.map((c) =>
+        [c.title, c.id, c.subscriber_count, c.niche, c.status, c.email]
+          .map(esc)
+          .join(",")
+      ),
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "creators-selected.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const statusCounts = channels.reduce<Record<string, number>>((acc, c) => {
     acc[c.status] = (acc[c.status] || 0) + 1;
@@ -151,6 +226,56 @@ export default function SavedPage() {
         </div>
       )}
 
+      {/* batch toolbar (list view) */}
+      {view === "list" && filtered.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap border border-line bg-surface px-3 py-2">
+          <label className="flex items-center gap-2 text-sm text-ink-dim cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filtered.length > 0 && filtered.every((c) => selected.has(c.id))}
+              onChange={selectAllFiltered}
+              className="accent-accent"
+            />
+            {selectedIds.length > 0 ? `${selectedIds.length} selected` : "Select all"}
+          </label>
+          {selectedIds.length > 0 && (
+            <>
+              <span className="text-line-strong">|</span>
+              <Button
+                size="sm"
+                variant="default"
+                onClick={batchEnrich}
+                disabled={batchBusy !== null}
+              >
+                {batchBusy === "enrich" ? "Gathering…" : "⤓ Gather contacts"}
+              </Button>
+              <Select
+                value=""
+                onChange={(e) => batchStatus(e.target.value)}
+                disabled={batchBusy !== null}
+                className="w-auto !py-1.5 text-sm"
+              >
+                <option value="">Set status…</option>
+                {CHANNEL_STATUSES.map((k) => (
+                  <option key={k} value={k}>
+                    {STATUS_LABELS[k]}
+                  </option>
+                ))}
+              </Select>
+              <Button size="sm" variant="default" onClick={exportSelected}>
+                ↓ Export selected
+              </Button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-xs text-ink-dim hover:text-ink ml-auto"
+              >
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <p className="text-ink-dim text-sm py-8 text-center">Loading…</p>
       ) : channels.length === 0 ? (
@@ -172,7 +297,17 @@ export default function SavedPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map((c) => (
-            <Card key={c.id} className="flex flex-wrap gap-4 items-center">
+            <Card
+              key={c.id}
+              className={`flex flex-wrap gap-4 items-center ${selected.has(c.id) ? "border-accent/50" : ""}`}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(c.id)}
+                onChange={() => toggleSelect(c.id)}
+                className="accent-accent shrink-0"
+                aria-label={`Select ${c.title}`}
+              />
               {c.thumbnail ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -197,6 +332,9 @@ export default function SavedPage() {
                   <span>subs</span>
                   {c.niche && (
                     <span className="text-ink-dim/70">· {c.niche}</span>
+                  )}
+                  {(c.contact_count ?? 0) > 0 && (
+                    <span className="text-good">· ✉ {c.contact_count}</span>
                   )}
                 </div>
               </div>

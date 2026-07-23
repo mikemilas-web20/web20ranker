@@ -151,6 +151,18 @@ export const activities = mysqlTable("activities", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const contacts = mysqlTable("contacts", {
+  id: varchar("id", { length: 24 }).primaryKey(),
+  projectId: varchar("project_id", { length: 24 }).notNull(),
+  ytId: varchar("yt_id", { length: 64 }).notNull(),
+  type: varchar("type", { length: 16 }).notNull().default("other"),
+  value: varchar("value", { length: 512 }).notNull(),
+  source: varchar("source", { length: 16 }).notNull().default("manual"),
+  createdAt: datetime("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const tasks = mysqlTable("tasks", {
   id: varchar("id", { length: 24 }).primaryKey(),
   projectId: varchar("project_id", { length: 24 }).notNull(),

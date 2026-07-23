@@ -52,6 +52,7 @@ export interface VideoResult {
   title: string;
   thumbnail: string;
   publishedAt: string;
+  description?: string;
   viewCount?: number;
 }
 
@@ -274,11 +275,13 @@ export async function getRecentVideos(
       contentDetails?: { videoId?: string; videoPublishedAt?: string };
       snippet?: {
         title?: string;
+        description?: string;
         thumbnails?: { medium?: { url?: string }; default?: { url?: string } };
       };
     }) => ({
       id: i.contentDetails?.videoId || "",
       title: i.snippet?.title || "",
+      description: i.snippet?.description || "",
       thumbnail:
         i.snippet?.thumbnails?.medium?.url ||
         i.snippet?.thumbnails?.default?.url ||
@@ -286,4 +289,22 @@ export async function getRecentVideos(
       publishedAt: i.contentDetails?.videoPublishedAt || "",
     })
   );
+}
+
+/**
+ * Collect public text (channel description + recent video descriptions) that
+ * creators use to publish contact info, for enrichment/extraction.
+ */
+export async function gatherContactText(
+  apiKey: string,
+  channelId: string
+): Promise<string> {
+  const [channel, videos] = await Promise.all([
+    getChannel(apiKey, channelId),
+    getRecentVideos(apiKey, channelId, 8).catch(() => [] as VideoResult[]),
+  ]);
+  const parts: string[] = [];
+  if (channel?.description) parts.push(channel.description);
+  for (const v of videos) if (v.description) parts.push(v.description);
+  return parts.join("\n\n");
 }

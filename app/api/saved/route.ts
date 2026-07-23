@@ -2,13 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { listChannels, upsertChannel } from "@/lib/db";
 import { requireApiSession } from "@/lib/apiauth";
 import { getActiveProject } from "@/lib/projects";
+import { contactCountsByChannel } from "@/lib/contacts";
 
 export async function GET() {
   const guard = await requireApiSession();
   if (guard.response) return guard.response;
   const active = await getActiveProject(guard.session.wid);
+  if (!active) return NextResponse.json({ channels: [], project: null });
+
+  const [channels, counts] = await Promise.all([
+    listChannels(active.id),
+    contactCountsByChannel(active.id),
+  ]);
   return NextResponse.json({
-    channels: active ? await listChannels(active.id) : [],
+    channels: channels.map((c) => ({
+      ...c,
+      contact_count: counts[c.id] || 0,
+    })),
     project: active,
   });
 }
