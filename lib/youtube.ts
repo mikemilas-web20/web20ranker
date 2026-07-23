@@ -115,7 +115,20 @@ async function listChannels(
 export interface SearchOptions {
   regionCode?: string;
   publishedAfter?: string; // ISO date
-  maxResults?: number; // 1-50
+  maxPages?: number; // how many 50-result pages of search to page through
+  targetCount?: number; // stop early once this many passing channels collected
+  minSubs?: number;
+  maxSubs?: number;
+}
+
+function passesSubFilter(
+  c: ChannelResult,
+  minSubs?: number,
+  maxSubs?: number
+): boolean {
+  if (minSubs && c.subscriberCount < minSubs) return false;
+  if (maxSubs && c.subscriberCount > maxSubs) return false;
+  return true;
 }
 
 /** Direct channel search: good when the niche keyword appears in channel names/descriptions. */
@@ -124,62 +137,96 @@ export async function searchChannels(
   q: string,
   opts: SearchOptions = {}
 ): Promise<ChannelResult[]> {
-  const params: Record<string, string> = {
-    part: "snippet",
-    type: "channel",
-    q,
-    maxResults: String(opts.maxResults ?? 25),
-  };
-  if (opts.regionCode) params.regionCode = opts.regionCode;
-  const json = await yt(apiKey, "search", params);
-  const ids = (json.items || [])
-    .map((i: { snippet?: { channelId?: string } }) => i.snippet?.channelId)
-    .filter(Boolean);
-  return listChannels(apiKey, ids);
+  const maxPages = Math.max(1, opts.maxPages ?? 1);
+  const target = opts.targetCount ?? 50;
+  const out: ChannelResult[] = [];
+  const seen = new Set<string>();
+  let pageToken: string | undefined;
+
+  for (let page = 0; page < maxPages; page++) {
+    const params: Record<string, string> = {
+      part: "snippet",
+      type: "channel",
+      q,
+      maxResults: "50",
+    };
+    if (opts.regionCode) params.regionCode = opts.regionCode;
+    if (pageToken) params.pageToken = pageToken;
+
+    const json = await yt(apiKey, "search", params);
+    const ids: string[] = [];
+    for (const i of json.items || []) {
+      const id = i.snippet?.channelId;
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+    }
+    const channels = await listChannels(apiKey, ids);
+    for (const c of channels) {
+      if (passesSubFilter(c, opts.minSubs, opts.maxSubs)) out.push(c);
+    }
+    pageToken = json.nextPageToken;
+    if (!pageToken || out.length >= target) break;
+  }
+  return out.slice(0, target);
 }
 
 /**
  * Video-based discovery: search videos for the niche keyword and surface the
  * channels behind them. Finds active creators whose channel name doesn't
- * mention the niche.
+ * mention the niche. Pages through search results (bounded by maxPages) and,
+ * when a subscriber filter is set, keeps paging until it has collected a full
+ * set of channels that pass the filter.
  */
 export async function discoverChannelsViaVideos(
   apiKey: string,
   q: string,
   opts: SearchOptions = {}
 ): Promise<ChannelResult[]> {
-  const params: Record<string, string> = {
-    part: "snippet",
-    type: "video",
-    q,
-    maxResults: "50",
-    order: "relevance",
-  };
-  if (opts.regionCode) params.regionCode = opts.regionCode;
-  if (opts.publishedAfter) params.publishedAfter = opts.publishedAfter;
-  const json = await yt(apiKey, "search", params);
-
+  const maxPages = Math.max(1, opts.maxPages ?? 1);
+  const target = opts.targetCount ?? 50;
+  const out: ChannelResult[] = [];
+  const seen = new Set<string>();
   const videosByChannel = new Map<string, { id: string; title: string }[]>();
-  const ids: string[] = [];
-  for (const item of json.items || []) {
-    const channelId = item.snippet?.channelId;
-    if (!channelId) continue;
-    if (!videosByChannel.has(channelId)) {
-      videosByChannel.set(channelId, []);
-      ids.push(channelId);
-    }
-    videosByChannel.get(channelId)!.push({
-      id: item.id?.videoId || "",
-      title: item.snippet?.title || "",
-    });
-  }
+  let pageToken: string | undefined;
 
-  const channels = await listChannels(
-    apiKey,
-    ids.slice(0, opts.maxResults ?? 25)
-  );
-  for (const ch of channels) ch.matchedVideos = videosByChannel.get(ch.id);
-  return channels;
+  for (let page = 0; page < maxPages; page++) {
+    const params: Record<string, string> = {
+      part: "snippet",
+      type: "video",
+      q,
+      maxResults: "50",
+      order: "relevance",
+    };
+    if (opts.regionCode) params.regionCode = opts.regionCode;
+    if (opts.publishedAfter) params.publishedAfter = opts.publishedAfter;
+    if (pageToken) params.pageToken = pageToken;
+
+    const json = await yt(apiKey, "search", params);
+    const newIds: string[] = [];
+    for (const item of json.items || []) {
+      const channelId = item.snippet?.channelId;
+      if (!channelId) continue;
+      if (!videosByChannel.has(channelId)) videosByChannel.set(channelId, []);
+      videosByChannel.get(channelId)!.push({
+        id: item.id?.videoId || "",
+        title: item.snippet?.title || "",
+      });
+      if (!seen.has(channelId)) {
+        seen.add(channelId);
+        newIds.push(channelId);
+      }
+    }
+    const channels = await listChannels(apiKey, newIds);
+    for (const c of channels) {
+      c.matchedVideos = videosByChannel.get(c.id);
+      if (passesSubFilter(c, opts.minSubs, opts.maxSubs)) out.push(c);
+    }
+    pageToken = json.nextPageToken;
+    if (!pageToken || out.length >= target) break;
+  }
+  return out.slice(0, target);
 }
 
 export async function getChannel(

@@ -11,6 +11,7 @@ export interface SearchFilters {
   activeDays?: string;
   minSubs?: string;
   maxSubs?: string;
+  depth?: string;
 }
 
 export interface SearchEntry {

@@ -26,6 +26,7 @@ interface Filters {
   activeDays?: string;
   minSubs?: string;
   maxSubs?: string;
+  depth?: string;
 }
 interface HistoryEntry {
   id: string;
@@ -44,6 +45,7 @@ interface SearchParams {
   maxSubs: string;
   region: string;
   activeDays: string;
+  depth: string;
 }
 
 export default function DiscoverPage() {
@@ -53,6 +55,7 @@ export default function DiscoverPage() {
   const [maxSubs, setMaxSubs] = useState("");
   const [region, setRegion] = useState("");
   const [activeDays, setActiveDays] = useState("90");
+  const [depth, setDepth] = useState("standard");
   const [results, setResults] = useState<SearchChannel[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +88,7 @@ export default function DiscoverPage() {
         if (p.region) params.set("region", p.region);
         if (p.mode === "videos" && p.activeDays)
           params.set("activeDays", p.activeDays);
+        if (p.depth && p.depth !== "standard") params.set("depth", p.depth);
         const res = await fetch(`/api/search?${params}`);
         const json = await res.json().catch(() => null);
         if (!res.ok) {
@@ -104,7 +108,7 @@ export default function DiscoverPage() {
   );
 
   function currentParams(): SearchParams {
-    return { q, mode, minSubs, maxSubs, region, activeDays };
+    return { q, mode, minSubs, maxSubs, region, activeDays, depth };
   }
 
   function submit(e?: React.FormEvent) {
@@ -121,6 +125,7 @@ export default function DiscoverPage() {
       maxSubs: f.maxSubs ?? "",
       region: f.region ?? "",
       activeDays: f.activeDays ?? "",
+      depth: f.depth ?? "standard",
     };
     setQ(next.q);
     setMode(next.mode);
@@ -128,6 +133,7 @@ export default function DiscoverPage() {
     setMaxSubs(next.maxSubs);
     setRegion(next.region);
     setActiveDays(next.activeDays);
+    setDepth(next.depth);
     runSearch(next);
   }
 
@@ -142,7 +148,7 @@ export default function DiscoverPage() {
         name: name.trim(),
         query: q.trim(),
         mode,
-        filters: { region, activeDays, minSubs, maxSubs },
+        filters: { region, activeDays, minSubs, maxSubs, depth },
       }),
     });
     loadSearches();
@@ -252,6 +258,17 @@ export default function DiscoverPage() {
                 </Select>
               </Field>
             )}
+            <Field
+              label="Depth"
+              className="min-w-40"
+              hint="More depth = more results, more quota"
+            >
+              <Select value={depth} onChange={(e) => setDepth(e.target.value)}>
+                <option value="standard">Standard (~100 units)</option>
+                <option value="deep">Deep (~300 units)</option>
+                <option value="deepest">Deepest (~500 units)</option>
+              </Select>
+            </Field>
           </div>
         </form>
       </Card>

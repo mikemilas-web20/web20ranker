@@ -23,10 +23,13 @@ export async function GET(req: NextRequest) {
 
   const mode = sp.get("mode") === "channels" ? "channels" : "videos";
   const regionCode = sp.get("region") || undefined;
-  const maxResults = Math.min(Number(sp.get("max") || 25), 50);
   const publishedWithinDays = Number(sp.get("activeDays") || 0);
   const minSubs = Number(sp.get("minSubs") || 0);
   const maxSubs = Number(sp.get("maxSubs") || 0);
+
+  // Depth → how many 50-result search pages to page through (~100 quota units each).
+  const depth = sp.get("depth") || "standard";
+  const maxPages = depth === "deepest" ? 5 : depth === "deep" ? 3 : 1;
 
   const publishedAfter =
     publishedWithinDays > 0
@@ -35,19 +38,20 @@ export async function GET(req: NextRequest) {
 
   try {
     const apiKey = await resolveApiKey(wid);
-    let channels: ChannelResult[] =
+    const searchOpts = {
+      regionCode,
+      maxPages,
+      targetCount: 50,
+      minSubs: minSubs || undefined,
+      maxSubs: maxSubs || undefined,
+    };
+    const channels: ChannelResult[] =
       mode === "channels"
-        ? await searchChannels(apiKey!, q, { regionCode, maxResults })
+        ? await searchChannels(apiKey!, q, searchOpts)
         : await discoverChannelsViaVideos(apiKey!, q, {
-            regionCode,
-            maxResults,
+            ...searchOpts,
             publishedAfter,
           });
-
-    if (minSubs > 0)
-      channels = channels.filter((c) => c.subscriberCount >= minSubs);
-    if (maxSubs > 0)
-      channels = channels.filter((c) => c.subscriberCount <= maxSubs);
 
     const active = await getActiveProject(wid);
     const savedIds = new Set(
@@ -63,6 +67,7 @@ export async function GET(req: NextRequest) {
           activeDays: publishedWithinDays ? String(publishedWithinDays) : "",
           minSubs: minSubs ? String(minSubs) : "",
           maxSubs: maxSubs ? String(maxSubs) : "",
+          depth,
         },
         resultCount: channels.length,
       });
