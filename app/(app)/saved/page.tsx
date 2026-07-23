@@ -9,6 +9,7 @@ import { Input, Select } from "@/components/ui/Input";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/Badge";
 import PipelineBoard from "@/components/PipelineBoard";
+import BatchEmailModal from "@/components/BatchEmailModal";
 
 interface SavedChannel {
   id: string;
@@ -34,6 +35,7 @@ export default function SavedPage() {
   const [view, setView] = useState<"list" | "board">("list");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchBusy, setBatchBusy] = useState<string | null>(null);
+  const [emailModal, setEmailModal] = useState(false);
 
   function reload() {
     return fetch("/api/saved")
@@ -262,6 +264,13 @@ export default function SavedPage() {
                   </option>
                 ))}
               </Select>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setEmailModal(true)}
+              >
+                ✉ Send email
+              </Button>
               <Button size="sm" variant="default" onClick={exportSelected}>
                 ↓ Export selected
               </Button>
@@ -389,6 +398,19 @@ export default function SavedPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {emailModal && (
+        <BatchEmailModal
+          channels={filtered
+            .filter((c) => selected.has(c.id))
+            .map((c) => ({ id: c.id, title: c.title, email: c.email }))}
+          onClose={() => setEmailModal(false)}
+          onSent={() => {
+            reload();
+            setSelected(new Set());
+          }}
+        />
       )}
     </div>
   );

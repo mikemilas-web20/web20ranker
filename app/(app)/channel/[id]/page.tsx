@@ -57,6 +57,9 @@ export default function ChannelPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<"subject" | "body" | null>(null);
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sentMsg, setSentMsg] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -67,18 +70,46 @@ export default function ChannelPage() {
       }),
       fetch("/api/templates").then((r) => r.json()),
       fetch("/api/settings").then((r) => r.json()),
+      fetch("/api/gmail/status").then((r) => r.json()),
     ])
-      .then(([detail, tpl, settings]) => {
+      .then(([detail, tpl, settings, gmail]) => {
         setChannel(detail.channel);
         setVideos(detail.videos);
         setSaved(detail.saved);
         setTemplates(tpl.templates);
         if (tpl.templates.length > 0) setTemplateId(tpl.templates[0].id);
         setSenderName(settings.senderName || "");
+        setGmailConnected(Boolean(gmail?.connected));
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function sendViaGmail() {
+    if (!channel || !saved?.email) return;
+    setSending(true);
+    setSentMsg(null);
+    try {
+      const res = await fetch("/api/gmail/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: saved.email,
+          subject: renderedSubject,
+          body: renderedBody,
+          ytId: channel.id,
+        }),
+      });
+      const j = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(j?.error || "Send failed");
+      setSentMsg(`Sent from ${j.from}`);
+      if (saved.status === "to_contact") patchSaved({ status: "contacted" });
+    } catch (e) {
+      setSentMsg(e instanceof Error ? e.message : "Send failed");
+    } finally {
+      setSending(false);
+    }
+  }
 
   const patchSaved = useCallback(
     async (patch: Partial<SavedRow>) => {
@@ -362,10 +393,20 @@ export default function ChannelPage() {
                 >
                   {copied === "body" ? "Copied!" : "Copy message"}
                 </Button>
+                {saved?.email && gmailConnected && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={sendViaGmail}
+                    disabled={sending}
+                  >
+                    {sending ? "Sending…" : "Send via Gmail"}
+                  </Button>
+                )}
                 {saved?.email && (
                   <ButtonLink
                     size="sm"
-                    variant="primary"
+                    variant={gmailConnected ? "default" : "primary"}
                     href={`mailto:${saved.email}?subject=${encodeURIComponent(renderedSubject)}&body=${encodeURIComponent(renderedBody)}`}
                     external
                     onClick={() =>
@@ -377,6 +418,9 @@ export default function ChannelPage() {
                   </ButtonLink>
                 )}
               </div>
+              {sentMsg && (
+                <p className="text-xs text-good">{sentMsg}</p>
+              )}
               {!senderName && (
                 <p className="text-xs text-ink-dim">
                   Tip: set your name in{" "}

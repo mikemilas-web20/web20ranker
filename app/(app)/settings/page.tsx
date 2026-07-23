@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Field } from "@/components/ui/Input";
+import GmailConnect from "@/components/GmailConnect";
 
 export default function SettingsPage() {
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -106,6 +107,8 @@ export default function SettingsPage() {
           </div>
         </form>
       </Card>
+
+      <GmailConnect />
 
       <Card className="text-sm text-ink-dim">
         <h2 className="font-mono text-xs tracking-[0.14em] uppercase text-ink-dim mb-2">

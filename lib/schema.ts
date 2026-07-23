@@ -151,6 +151,15 @@ export const activities = mysqlTable("activities", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const gmailAccounts = mysqlTable("gmail_accounts", {
+  userId: varchar("user_id", { length: 24 }).primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  refreshToken: text("refresh_token").notNull(), // encrypted
+  createdAt: datetime("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const contacts = mysqlTable("contacts", {
   id: varchar("id", { length: 24 }).primaryKey(),
   projectId: varchar("project_id", { length: 24 }).notNull(),

@@ -157,6 +157,12 @@ const DDL: string[] = [
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_activity_channel (project_id, yt_id, created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS gmail_accounts (
+    user_id VARCHAR(24) PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    refresh_token TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS contacts (
     id VARCHAR(24) PRIMARY KEY,
     project_id VARCHAR(24) NOT NULL,
