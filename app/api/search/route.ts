@@ -8,6 +8,7 @@ import {
 import { listChannelIds } from "@/lib/db";
 import { requireApiSession, resolveApiKey } from "@/lib/apiauth";
 import { getActiveProject } from "@/lib/projects";
+import { logSearch } from "@/lib/searches";
 
 export async function GET(req: NextRequest) {
   const guard = await requireApiSession();
@@ -52,6 +53,20 @@ export async function GET(req: NextRequest) {
     const savedIds = new Set(
       active ? await listChannelIds(active.id) : []
     );
+
+    if (active) {
+      await logSearch(active.id, {
+        query: q,
+        mode,
+        filters: {
+          region: regionCode,
+          activeDays: publishedWithinDays ? String(publishedWithinDays) : "",
+          minSubs: minSubs ? String(minSubs) : "",
+          maxSubs: maxSubs ? String(maxSubs) : "",
+        },
+        resultCount: channels.length,
+      });
+    }
 
     return NextResponse.json({
       channels: channels.map((c) => ({ ...c, saved: savedIds.has(c.id) })),

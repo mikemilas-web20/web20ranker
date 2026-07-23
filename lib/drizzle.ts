@@ -48,6 +48,8 @@ export const db: MySql2Database<typeof schema> = drizzle(pool, {
   mode: "default",
 });
 
+export { pool };
+
 // Idempotent DDL — avoids needing a migration step in the deploy pipeline.
 const DDL: string[] = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -124,6 +126,26 @@ const DDL: string[] = [
     \`key\` VARCHAR(64) NOT NULL,
     value TEXT NOT NULL,
     PRIMARY KEY (workspace_id, \`key\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS search_history (
+    id VARCHAR(24) PRIMARY KEY,
+    project_id VARCHAR(24) NOT NULL,
+    \`query\` VARCHAR(255) NOT NULL,
+    mode VARCHAR(16) NOT NULL DEFAULT 'videos',
+    filters TEXT,
+    result_count INT DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_history_project (project_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS saved_searches (
+    id VARCHAR(24) PRIMARY KEY,
+    project_id VARCHAR(24) NOT NULL,
+    name VARCHAR(160) NOT NULL,
+    \`query\` VARCHAR(255) NOT NULL,
+    mode VARCHAR(16) NOT NULL DEFAULT 'videos',
+    filters TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_saved_project (project_id, created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 

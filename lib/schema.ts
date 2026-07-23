@@ -114,3 +114,27 @@ export const settings = mysqlTable(
   },
   (t) => [primaryKey({ columns: [t.workspaceId, t.key] })]
 );
+
+export const searchHistory = mysqlTable("search_history", {
+  id: varchar("id", { length: 24 }).primaryKey(),
+  projectId: varchar("project_id", { length: 24 }).notNull(),
+  query: varchar("query", { length: 255 }).notNull(),
+  mode: varchar("mode", { length: 16 }).notNull().default("videos"),
+  filters: text("filters"), // JSON
+  resultCount: int("result_count").default(0),
+  createdAt: datetime("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const savedSearches = mysqlTable("saved_searches", {
+  id: varchar("id", { length: 24 }).primaryKey(),
+  projectId: varchar("project_id", { length: 24 }).notNull(),
+  name: varchar("name", { length: 160 }).notNull(),
+  query: varchar("query", { length: 255 }).notNull(),
+  mode: varchar("mode", { length: 16 }).notNull().default("videos"),
+  filters: text("filters"), // JSON
+  createdAt: datetime("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});

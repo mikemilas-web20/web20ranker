@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import ChannelCard, { SearchChannel } from "@/components/ChannelCard";
 import { Card } from "@/components/ui/Card";
@@ -21,6 +21,31 @@ const REGIONS = [
   ["JP", "Japan"],
 ];
 
+interface Filters {
+  region?: string;
+  activeDays?: string;
+  minSubs?: string;
+  maxSubs?: string;
+}
+interface HistoryEntry {
+  id: string;
+  query: string;
+  mode: string;
+  filters: Filters;
+  result_count: number;
+}
+interface SavedSearch extends HistoryEntry {
+  name: string;
+}
+interface SearchParams {
+  q: string;
+  mode: "videos" | "channels";
+  minSubs: string;
+  maxSubs: string;
+  region: string;
+  activeDays: string;
+}
+
 export default function DiscoverPage() {
   const [q, setQ] = useState("");
   const [mode, setMode] = useState<"videos" | "channels">("videos");
@@ -33,31 +58,104 @@ export default function DiscoverPage() {
   const [error, setError] = useState<string | null>(null);
   const [needsKey, setNeedsKey] = useState(false);
 
-  async function search(e?: React.FormEvent) {
-    e?.preventDefault();
-    if (!q.trim()) return;
-    setLoading(true);
-    setError(null);
-    setNeedsKey(false);
-    try {
-      const params = new URLSearchParams({ q: q.trim(), mode });
-      if (minSubs) params.set("minSubs", minSubs);
-      if (maxSubs) params.set("maxSubs", maxSubs);
-      if (region) params.set("region", region);
-      if (mode === "videos" && activeDays) params.set("activeDays", activeDays);
-      const res = await fetch(`/api/search?${params}`);
-      const json = await res.json();
-      if (!res.ok) {
-        if (res.status === 428) setNeedsKey(true);
-        throw new Error(json.error || "Search failed");
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [saved, setSaved] = useState<SavedSearch[]>([]);
+
+  const loadSearches = useCallback(() => {
+    fetch("/api/searches")
+      .then((r) => r.json())
+      .then((j) => {
+        setHistory(j.history ?? []);
+        setSaved(j.saved ?? []);
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(loadSearches, [loadSearches]);
+
+  const runSearch = useCallback(
+    async (p: SearchParams) => {
+      if (!p.q.trim()) return;
+      setLoading(true);
+      setError(null);
+      setNeedsKey(false);
+      try {
+        const params = new URLSearchParams({ q: p.q.trim(), mode: p.mode });
+        if (p.minSubs) params.set("minSubs", p.minSubs);
+        if (p.maxSubs) params.set("maxSubs", p.maxSubs);
+        if (p.region) params.set("region", p.region);
+        if (p.mode === "videos" && p.activeDays)
+          params.set("activeDays", p.activeDays);
+        const res = await fetch(`/api/search?${params}`);
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          if (res.status === 428) setNeedsKey(true);
+          throw new Error(json?.error || `Search failed (${res.status})`);
+        }
+        setResults(json.channels);
+        loadSearches(); // history was just logged server-side
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Search failed");
+        setResults(null);
+      } finally {
+        setLoading(false);
       }
-      setResults(json.channels);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
-      setResults(null);
-    } finally {
-      setLoading(false);
-    }
+    },
+    [loadSearches]
+  );
+
+  function currentParams(): SearchParams {
+    return { q, mode, minSubs, maxSubs, region, activeDays };
+  }
+
+  function submit(e?: React.FormEvent) {
+    e?.preventDefault();
+    runSearch(currentParams());
+  }
+
+  function applyEntry(entry: HistoryEntry) {
+    const f = entry.filters ?? {};
+    const next: SearchParams = {
+      q: entry.query,
+      mode: entry.mode === "channels" ? "channels" : "videos",
+      minSubs: f.minSubs ?? "",
+      maxSubs: f.maxSubs ?? "",
+      region: f.region ?? "",
+      activeDays: f.activeDays ?? "",
+    };
+    setQ(next.q);
+    setMode(next.mode);
+    setMinSubs(next.minSubs);
+    setMaxSubs(next.maxSubs);
+    setRegion(next.region);
+    setActiveDays(next.activeDays);
+    runSearch(next);
+  }
+
+  async function saveCurrentSearch() {
+    if (!q.trim()) return;
+    const name = window.prompt("Name this search:", q.trim());
+    if (!name || !name.trim()) return;
+    await fetch("/api/searches/saved", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name.trim(),
+        query: q.trim(),
+        mode,
+        filters: { region, activeDays, minSubs, maxSubs },
+      }),
+    });
+    loadSearches();
+  }
+
+  async function deleteSaved(id: string) {
+    await fetch(`/api/searches/saved/${id}`, { method: "DELETE" });
+    setSaved((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  async function clearHistory() {
+    await fetch("/api/searches/history", { method: "DELETE" });
+    setHistory([]);
   }
 
   async function save(channel: SearchChannel) {
@@ -87,7 +185,7 @@ export default function DiscoverPage() {
       </div>
 
       <Card block className="flex flex-col gap-4">
-        <form onSubmit={search} className="contents">
+        <form onSubmit={submit} className="contents">
           <div className="flex gap-2">
             <Input
               value={q}
@@ -158,6 +256,63 @@ export default function DiscoverPage() {
         </form>
       </Card>
 
+      {/* Saved searches + recent history */}
+      {(saved.length > 0 || history.length > 0) && (
+        <div className="flex flex-col gap-3">
+          {saved.length > 0 && (
+            <div className="flex items-start gap-2 flex-wrap">
+              <span className="label pt-1.5 shrink-0">Saved</span>
+              <div className="flex gap-1.5 flex-wrap">
+                {saved.map((s) => (
+                  <span
+                    key={s.id}
+                    className="inline-flex items-center border border-line-strong bg-surface-2"
+                  >
+                    <button
+                      onClick={() => applyEntry(s)}
+                      className="px-2.5 py-1 text-sm text-ink hover:text-accent"
+                      title={`${s.query} · ${s.mode}`}
+                    >
+                      ★ {s.name}
+                    </button>
+                    <button
+                      onClick={() => deleteSaved(s.id)}
+                      className="px-1.5 py-1 text-ink-dim hover:text-crit border-l border-line"
+                      title="Delete saved search"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {history.length > 0 && (
+            <div className="flex items-start gap-2 flex-wrap">
+              <span className="label pt-1.5 shrink-0">Recent</span>
+              <div className="flex gap-1.5 flex-wrap items-center">
+                {history.map((h) => (
+                  <button
+                    key={h.id}
+                    onClick={() => applyEntry(h)}
+                    className="px-2.5 py-1 text-sm border border-line bg-surface-2 text-ink-dim hover:text-ink hover:border-line-strong"
+                    title={`${h.result_count} results · ${h.mode}`}
+                  >
+                    {h.query}
+                  </button>
+                ))}
+                <button
+                  onClick={clearHistory}
+                  className="px-2 py-1 text-xs text-ink-dim hover:text-crit"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {needsKey && (
         <div className="border border-warn/50 bg-warn/10 text-ink px-4 py-3 text-sm">
           You need a YouTube Data API key to search.{" "}
@@ -174,11 +329,18 @@ export default function DiscoverPage() {
 
       {results && (
         <>
-          <p className="label">
-            {results.length} channel{results.length === 1 ? "" : "s"} found
-            {results.length === 0 &&
-              " — try widening the subscriber range or a broader keyword"}
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="label">
+              {results.length} channel{results.length === 1 ? "" : "s"} found
+              {results.length === 0 &&
+                " — try widening the subscriber range or a broader keyword"}
+            </p>
+            {q.trim() && (
+              <Button size="sm" variant="ghost" onClick={saveCurrentSearch}>
+                ★ Save this search
+              </Button>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {results.map((c) => (
               <ChannelCard key={c.id} channel={c} onSave={save} />
