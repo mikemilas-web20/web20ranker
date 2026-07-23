@@ -138,3 +138,28 @@ export const savedSearches = mysqlTable("saved_searches", {
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const activities = mysqlTable("activities", {
+  id: varchar("id", { length: 24 }).primaryKey(),
+  projectId: varchar("project_id", { length: 24 }).notNull(),
+  ytId: varchar("yt_id", { length: 64 }).notNull(),
+  userId: varchar("user_id", { length: 24 }).default(""),
+  type: varchar("type", { length: 24 }).notNull().default("note"),
+  body: text("body"),
+  createdAt: datetime("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const tasks = mysqlTable("tasks", {
+  id: varchar("id", { length: 24 }).primaryKey(),
+  projectId: varchar("project_id", { length: 24 }).notNull(),
+  ytId: varchar("yt_id", { length: 64 }).default(""),
+  channelTitle: varchar("channel_title", { length: 255 }).default(""),
+  title: varchar("title", { length: 255 }).notNull(),
+  dueDate: varchar("due_date", { length: 10 }).default(""), // YYYY-MM-DD
+  done: int("done").notNull().default(0),
+  createdAt: datetime("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});

@@ -8,6 +8,8 @@ import { CHANNEL_STATUSES } from "@/lib/statuses";
 import { Card } from "@/components/ui/Card";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Input, Textarea, Select, Field } from "@/components/ui/Input";
+import ActivityFeed from "@/components/ActivityFeed";
+import CreatorTasks from "@/components/CreatorTasks";
 
 interface ChannelDetail {
   id: string;
@@ -387,6 +389,14 @@ export default function ChannelPage() {
           )}
         </Card>
       </section>
+
+      {/* CRM: follow-ups + activity timeline (once saved) */}
+      {saved && (
+        <section className="grid md:grid-cols-2 gap-6">
+          <CreatorTasks channelId={channel.id} channelTitle={channel.title} />
+          <ActivityFeed channelId={channel.id} />
+        </section>
+      )}
     </div>
   );
 }

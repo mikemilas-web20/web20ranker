@@ -7,6 +7,8 @@ import {
 } from "@/lib/db";
 import { requireApiSession } from "@/lib/apiauth";
 import { getActiveProject } from "@/lib/projects";
+import { logActivity } from "@/lib/activities";
+import { STATUS_LABELS } from "@/lib/format";
 
 const EDITABLE_FIELDS: EditableChannelField[] = [
   "status",
@@ -48,6 +50,16 @@ export async function PATCH(
   const ok = await updateChannel(active.id, id, patch);
   if (!ok) {
     return NextResponse.json({ error: "Channel not saved" }, { status: 404 });
+  }
+  // Record status changes on the creator's activity timeline.
+  if (patch.status) {
+    await logActivity(
+      active.id,
+      id,
+      "status",
+      `Status set to ${STATUS_LABELS[patch.status] ?? patch.status}`,
+      guard.session.uid
+    );
   }
   return NextResponse.json({ ok: true });
 }

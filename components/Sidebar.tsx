@@ -37,6 +37,17 @@ const NAV = [
     ),
   },
   {
+    href: "/tasks",
+    label: "Tasks",
+    match: (p: string) => p.startsWith("/tasks"),
+    icon: (
+      <>
+        <path d="M9 11l3 3 8-8" />
+        <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" />
+      </>
+    ),
+  },
+  {
     href: "/templates",
     label: "Templates",
     match: (p: string) => p.startsWith("/templates"),

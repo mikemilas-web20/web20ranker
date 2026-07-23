@@ -16,6 +16,7 @@ const TITLES: { test: (p: string) => boolean; label: string }[] = [
   { test: (p) => p === "/", label: "Discover" },
   { test: (p) => p.startsWith("/channel"), label: "Creator" },
   { test: (p) => p.startsWith("/saved"), label: "Pipeline" },
+  { test: (p) => p.startsWith("/tasks"), label: "Tasks" },
   { test: (p) => p.startsWith("/templates"), label: "Templates" },
   { test: (p) => p.startsWith("/team"), label: "Team" },
   { test: (p) => p.startsWith("/settings"), label: "Settings" },

@@ -147,6 +147,27 @@ const DDL: string[] = [
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_saved_project (project_id, created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS activities (
+    id VARCHAR(24) PRIMARY KEY,
+    project_id VARCHAR(24) NOT NULL,
+    yt_id VARCHAR(64) NOT NULL,
+    user_id VARCHAR(24) DEFAULT '',
+    type VARCHAR(24) NOT NULL DEFAULT 'note',
+    body TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_activity_channel (project_id, yt_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS tasks (
+    id VARCHAR(24) PRIMARY KEY,
+    project_id VARCHAR(24) NOT NULL,
+    yt_id VARCHAR(64) DEFAULT '',
+    channel_title VARCHAR(255) DEFAULT '',
+    title VARCHAR(255) NOT NULL,
+    due_date VARCHAR(10) DEFAULT '',
+    done INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_task_project (project_id, done, due_date)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 const STARTER_TEMPLATES = [

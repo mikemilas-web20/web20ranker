@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Input, Select } from "@/components/ui/Input";
 import { ButtonLink } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/Badge";
+import PipelineBoard from "@/components/PipelineBoard";
 
 interface SavedChannel {
   id: string;
@@ -29,6 +30,7 @@ export default function SavedPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
   const [nicheFilter, setNicheFilter] = useState("");
+  const [view, setView] = useState<"list" | "board">("list");
 
   useEffect(() => {
     fetch("/api/saved")
@@ -86,6 +88,20 @@ export default function SavedPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <div className="flex border border-line-strong">
+            <button
+              onClick={() => setView("list")}
+              className={`px-3 py-1.5 text-sm ${view === "list" ? "bg-accent text-accent-ink" : "text-ink-dim hover:text-ink"}`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => setView("board")}
+              className={`px-3 py-1.5 text-sm border-l border-line-strong ${view === "board" ? "bg-accent text-accent-ink" : "text-ink-dim hover:text-ink"}`}
+            >
+              Board
+            </button>
+          </div>
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -137,18 +153,21 @@ export default function SavedPage() {
 
       {loading ? (
         <p className="text-ink-dim text-sm py-8 text-center">Loading…</p>
+      ) : channels.length === 0 ? (
+        <div className="text-center text-ink-dim py-16 text-sm border border-dashed border-line">
+          No saved channels yet.{" "}
+          <Link href="/" className="text-accent underline">
+            Discover some →
+          </Link>
+        </div>
+      ) : view === "board" ? (
+        <PipelineBoard
+          channels={filtered}
+          onMove={(id, status) => update(id, { status })}
+        />
       ) : filtered.length === 0 ? (
         <div className="text-center text-ink-dim py-16 text-sm border border-dashed border-line">
-          {channels.length === 0 ? (
-            <>
-              No saved channels yet.{" "}
-              <Link href="/" className="text-accent underline">
-                Discover some →
-              </Link>
-            </>
-          ) : (
-            "No channels match the current filters."
-          )}
+          No channels match the current filters.
         </div>
       ) : (
         <div className="flex flex-col gap-3">
