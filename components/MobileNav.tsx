@@ -6,6 +6,11 @@ import { cn } from "@/lib/cn";
 
 const NAV = [
   {
+    href: "/dashboard",
+    label: "Dashboard",
+    match: (p: string) => p.startsWith("/dashboard"),
+  },
+  {
     href: "/projects",
     label: "Projects",
     match: (p: string) => p.startsWith("/projects"),

@@ -13,6 +13,7 @@ interface TopbarUser {
 }
 
 const TITLES: { test: (p: string) => boolean; label: string }[] = [
+  { test: (p) => p.startsWith("/dashboard"), label: "Dashboard" },
   { test: (p) => p === "/", label: "Discover" },
   { test: (p) => p.startsWith("/channel"), label: "Creator" },
   { test: (p) => p.startsWith("/saved"), label: "Pipeline" },

@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db, ensureReady } from "./drizzle";
-import { activities } from "./schema";
+import { activities, channels } from "./schema";
 import { genId } from "./ids";
 
 export interface ActivityRow {
@@ -28,6 +28,48 @@ export async function logActivity(
     type,
     body: body.slice(0, 2000),
   });
+}
+
+export interface RecentActivity extends ActivityRow {
+  channel_title: string;
+}
+
+export async function listRecentActivities(
+  projectId: string,
+  limit = 8
+): Promise<RecentActivity[]> {
+  await ensureReady();
+  const rows = await db
+    .select({
+      id: activities.id,
+      ytId: activities.ytId,
+      type: activities.type,
+      body: activities.body,
+      createdAt: activities.createdAt,
+      title: channels.title,
+    })
+    .from(activities)
+    .leftJoin(
+      channels,
+      and(
+        eq(channels.projectId, activities.projectId),
+        eq(channels.ytId, activities.ytId)
+      )
+    )
+    .where(eq(activities.projectId, projectId))
+    .orderBy(desc(activities.createdAt))
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    yt_id: r.ytId,
+    type: r.type,
+    body: r.body ?? "",
+    channel_title: r.title ?? "",
+    created_at: (r.createdAt instanceof Date
+      ? r.createdAt
+      : new Date(r.createdAt)
+    ).toISOString(),
+  }));
 }
 
 export async function listActivities(
